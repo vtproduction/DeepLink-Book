@@ -1,29 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+
+import 'router.dart';
 
 class App extends StatelessWidget {
-  const App({super.key});
+  const App({super.key, this.router});
+
+  final GoRouter? router;
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Deeplink Manager',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
-    );
-  }
-}
-
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Deeplink Manager')),
-      body: const Center(child: Text('Deeplink Manager is ready.')),
+      routerConfig: router ?? appRouter,
     );
   }
 }
