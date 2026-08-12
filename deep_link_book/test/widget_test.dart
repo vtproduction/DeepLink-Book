@@ -25,7 +25,7 @@ void main() {
 
     expect(materialApp.theme, AppTheme.lightTheme);
     expect(materialApp.darkTheme, AppTheme.darkTheme);
-    expect(materialApp.themeMode, ThemeMode.dark);
+    expect(materialApp.themeMode, ThemeMode.system);
   });
 
   testWidgets('shows the bottom navigation tabs', (WidgetTester tester) async {

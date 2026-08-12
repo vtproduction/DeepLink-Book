@@ -15,7 +15,7 @@ class App extends StatelessWidget {
       title: 'Deeplink Manager',
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
-      themeMode: ThemeMode.dark,
+      themeMode: ThemeMode.system,
       routerConfig: router ?? appRouter,
     );
   }
