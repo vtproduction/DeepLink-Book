@@ -1,25 +1,33 @@
 import 'package:deep_link_book/app/app.dart';
 import 'package:deep_link_book/app/router.dart';
 import 'package:deep_link_book/app/theme/app_theme.dart';
+import 'package:deep_link_book/core/database/app_database.dart';
 import 'package:deep_link_book/core/widgets/app_confirm_dialog.dart';
 import 'package:deep_link_book/core/widgets/app_empty_state.dart';
+import 'package:deep_link_book/features/deeplinks/providers/deeplink_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() {
-  testWidgets('shows the initial home screen', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      ProviderScope(child: App(router: createAppRouter())),
-    );
+  testWidgets('shows the Home loading state', (WidgetTester tester) async {
+    await pumpApp(tester, deeplinksValue: const AsyncLoading());
 
-    expect(find.text('Deeplink Manager home'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+  });
+
+  testWidgets('shows the Home empty state', (WidgetTester tester) async {
+    await pumpApp(tester, deeplinks: const []);
+
+    expect(find.text('No deeplinks yet'), findsOneWidget);
+    expect(
+      find.text('Create your first deeplink to get started.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('supports light and dark themes', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      ProviderScope(child: App(router: createAppRouter())),
-    );
+    await pumpApp(tester, deeplinks: const []);
 
     final materialApp = tester.widget<MaterialApp>(find.byType(MaterialApp));
 
@@ -29,9 +37,7 @@ void main() {
   });
 
   testWidgets('shows the bottom navigation tabs', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      ProviderScope(child: App(router: createAppRouter())),
-    );
+    await pumpApp(tester, deeplinks: const []);
 
     expect(find.byType(NavigationBar), findsOneWidget);
     expect(find.widgetWithText(NavigationDestination, 'Home'), findsOneWidget);
@@ -46,9 +52,7 @@ void main() {
   });
 
   testWidgets('navigates from Home to History', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      ProviderScope(child: App(router: createAppRouter())),
-    );
+    await pumpApp(tester, deeplinks: const []);
 
     await tester.tap(find.widgetWithText(NavigationDestination, 'History'));
     await tester.pumpAndSettle();
@@ -58,9 +62,7 @@ void main() {
   });
 
   testWidgets('navigates from Home to Settings', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      ProviderScope(child: App(router: createAppRouter())),
-    );
+    await pumpApp(tester, deeplinks: const []);
 
     await tester.tap(find.widgetWithText(NavigationDestination, 'Settings'));
     await tester.pumpAndSettle();
@@ -69,12 +71,81 @@ void main() {
     expect(find.byType(NavigationBar), findsOneWidget);
   });
 
+  testWidgets('shows deeplink data on Home', (WidgetTester tester) async {
+    await pumpApp(
+      tester,
+      deeplinks: [
+        testDeeplink(
+          id: 1,
+          name: 'Transfer Out',
+          url: 'ascendbank-qa://transfer_out',
+        ),
+        testDeeplink(id: 2, name: 'Profile', url: 'ascendbank-qa://profile'),
+      ],
+    );
+
+    expect(find.text('Transfer Out'), findsOneWidget);
+    expect(find.text('ascendbank-qa://transfer_out'), findsOneWidget);
+    expect(find.text('Profile'), findsOneWidget);
+    expect(find.text('ascendbank-qa://profile'), findsOneWidget);
+  });
+
+  testWidgets('shows favorite indicator and open count', (
+    WidgetTester tester,
+  ) async {
+    await pumpApp(
+      tester,
+      deeplinks: [
+        testDeeplink(
+          id: 1,
+          name: 'Transfer Out',
+          url: 'ascendbank-qa://transfer_out',
+          isFavorite: true,
+          openCount: 3,
+        ),
+      ],
+    );
+
+    expect(find.byIcon(Icons.star), findsOneWidget);
+    expect(find.text('Opened 3 times'), findsOneWidget);
+  });
+
+  testWidgets('handles long deeplink URLs without overflow', (
+    WidgetTester tester,
+  ) async {
+    await pumpApp(
+      tester,
+      deeplinks: [
+        testDeeplink(
+          id: 1,
+          name: 'Very Long URL',
+          url:
+              'ascendbank-qa://transfer_out/with/a/very/long/path/that/keeps/going?account=primary&amount=1000&note=this-is-a-long-note',
+        ),
+      ],
+    );
+
+    expect(find.text('Very Long URL'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('shows Home error state', (WidgetTester tester) async {
+    await pumpApp(
+      tester,
+      deeplinksValue: AsyncValue.error(
+        Exception('Database failed'),
+        StackTrace.empty,
+      ),
+    );
+
+    expect(find.text('Unable to load deeplinks'), findsOneWidget);
+    expect(find.text('Please try again later.'), findsOneWidget);
+  });
+
   testWidgets('opens Add Deeplink from the Home FAB', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(
-      ProviderScope(child: App(router: createAppRouter())),
-    );
+    await pumpApp(tester, deeplinks: const []);
 
     await tester.tap(find.byTooltip('Add Deeplink'));
     await tester.pumpAndSettle();
@@ -87,9 +158,7 @@ void main() {
   testWidgets('returns from Add Deeplink to Home with back', (
     WidgetTester tester,
   ) async {
-    await tester.pumpWidget(
-      ProviderScope(child: App(router: createAppRouter())),
-    );
+    await pumpApp(tester, deeplinks: const []);
 
     await tester.tap(find.byTooltip('Add Deeplink'));
     await tester.pumpAndSettle();
@@ -97,7 +166,7 @@ void main() {
     await tester.pageBack();
     await tester.pumpAndSettle();
 
-    expect(find.text('Deeplink Manager home'), findsOneWidget);
+    expect(find.text('No deeplinks yet'), findsOneWidget);
     expect(find.byType(NavigationBar), findsOneWidget);
   });
 
@@ -189,6 +258,43 @@ void main() {
 
     expect(result, isFalse);
   });
+}
+
+Future<void> pumpApp(
+  WidgetTester tester, {
+  List<Deeplink>? deeplinks,
+  AsyncValue<List<Deeplink>>? deeplinksValue,
+}) async {
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        deeplinksProvider.overrideWithValue(
+          deeplinksValue ?? AsyncValue.data(deeplinks ?? const []),
+        ),
+      ],
+      child: App(router: createAppRouter()),
+    ),
+  );
+}
+
+Deeplink testDeeplink({
+  required int id,
+  required String name,
+  required String url,
+  bool isFavorite = false,
+  int openCount = 0,
+}) {
+  final now = DateTime(2026, 8, 13, 10);
+
+  return Deeplink(
+    id: id,
+    name: name,
+    url: url,
+    isFavorite: isFavorite,
+    openCount: openCount,
+    createdAt: now,
+    updatedAt: now,
+  );
 }
 
 class _ConfirmDialogTestApp extends StatelessWidget {
