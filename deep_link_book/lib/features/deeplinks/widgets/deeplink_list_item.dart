@@ -4,9 +4,10 @@ import '../../../app/theme/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 
 class DeeplinkListItem extends StatelessWidget {
-  const DeeplinkListItem({super.key, required this.deeplink});
+  const DeeplinkListItem({super.key, required this.deeplink, this.onTap});
 
   final Deeplink deeplink;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -14,6 +15,7 @@ class DeeplinkListItem extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return ListTile(
+      onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
         vertical: AppSpacing.sm,

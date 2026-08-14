@@ -41,7 +41,17 @@ class HomeScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(AppSpacing.md),
             itemCount: deeplinks.length,
             itemBuilder: (context, index) {
-              return DeeplinkListItem(deeplink: deeplinks[index]);
+              final deeplink = deeplinks[index];
+
+              return DeeplinkListItem(
+                deeplink: deeplink,
+                onTap: () {
+                  context.pushNamed(
+                    AppRoute.editDeeplink.name,
+                    pathParameters: {'id': deeplink.id.toString()},
+                  );
+                },
+              );
             },
             separatorBuilder: (context, index) => const Divider(),
           );
