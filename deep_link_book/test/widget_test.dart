@@ -151,7 +151,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Add Deeplink'), findsOneWidget);
-    expect(find.text('Add deeplink screen placeholder'), findsOneWidget);
+    expect(find.text('Name'), findsOneWidget);
+    expect(find.text('Deeplink URL'), findsOneWidget);
+    expect(find.text('Description'), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
   });
 
