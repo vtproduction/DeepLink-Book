@@ -4,15 +4,25 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
 import '../../../app/theme/app_spacing.dart';
+import '../../../core/database/app_database.dart';
+import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_empty_state.dart';
+import '../data/deeplink_repository.dart';
 import '../providers/deeplink_providers.dart';
 import '../widgets/deeplink_list_item.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  int? _deletingDeeplinkId;
+
+  @override
+  Widget build(BuildContext context) {
     final deeplinks = ref.watch(deeplinksProvider);
 
     return Scaffold(
@@ -45,12 +55,10 @@ class HomeScreen extends ConsumerWidget {
 
               return DeeplinkListItem(
                 deeplink: deeplink,
-                onTap: () {
-                  context.pushNamed(
-                    AppRoute.editDeeplink.name,
-                    pathParameters: {'id': deeplink.id.toString()},
-                  );
-                },
+                isDeleting: _deletingDeeplinkId == deeplink.id,
+                onTap: () => _openEditScreen(deeplink),
+                onEdit: () => _openEditScreen(deeplink),
+                onDelete: () => _confirmAndDeleteDeeplink(deeplink),
               );
             },
             separatorBuilder: (context, index) => const Divider(),
@@ -63,5 +71,64 @@ class HomeScreen extends ConsumerWidget {
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  void _openEditScreen(Deeplink deeplink) {
+    context.pushNamed(
+      AppRoute.editDeeplink.name,
+      pathParameters: {'id': deeplink.id.toString()},
+    );
+  }
+
+  Future<void> _confirmAndDeleteDeeplink(Deeplink deeplink) async {
+    if (_deletingDeeplinkId != null) {
+      return;
+    }
+
+    final confirmed = await showAppConfirmDialog(
+      context: context,
+      title: 'Delete deeplink?',
+      message: 'This deeplink will be permanently removed.',
+      confirmLabel: 'Delete',
+      isDestructive: true,
+    );
+
+    if (!mounted || !confirmed) {
+      return;
+    }
+
+    setState(() {
+      _deletingDeeplinkId = deeplink.id;
+    });
+
+    try {
+      final deleted = await ref
+          .read(deeplinkRepositoryProvider)
+          .deleteDeeplink(deeplink.id);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (!deleted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This deeplink no longer exists.')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to delete deeplink.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _deletingDeeplinkId = null;
+        });
+      }
+    }
   }
 }

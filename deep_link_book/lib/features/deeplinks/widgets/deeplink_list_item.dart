@@ -4,10 +4,20 @@ import '../../../app/theme/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 
 class DeeplinkListItem extends StatelessWidget {
-  const DeeplinkListItem({super.key, required this.deeplink, this.onTap});
+  const DeeplinkListItem({
+    super.key,
+    required this.deeplink,
+    this.isDeleting = false,
+    this.onTap,
+    this.onEdit,
+    this.onDelete,
+  });
 
   final Deeplink deeplink;
+  final bool isDeleting;
   final VoidCallback? onTap;
+  final VoidCallback? onEdit;
+  final VoidCallback? onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -47,11 +57,46 @@ class DeeplinkListItem extends StatelessWidget {
           ),
         ],
       ),
-      trailing: Icon(
-        deeplink.isFavorite ? Icons.star : Icons.star_border,
-        color: deeplink.isFavorite
-            ? colorScheme.primary
-            : colorScheme.onSurfaceVariant,
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            deeplink.isFavorite ? Icons.star : Icons.star_border,
+            color: deeplink.isFavorite
+                ? colorScheme.primary
+                : colorScheme.onSurfaceVariant,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          if (isDeleting)
+            const SizedBox.square(
+              dimension: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            PopupMenuButton<_DeeplinkListItemAction>(
+              tooltip: 'Actions for ${deeplink.name}',
+              onSelected: (action) {
+                switch (action) {
+                  case _DeeplinkListItemAction.edit:
+                    onEdit?.call();
+                  case _DeeplinkListItemAction.delete:
+                    onDelete?.call();
+                }
+              },
+              itemBuilder: (context) {
+                return const [
+                  PopupMenuItem(
+                    value: _DeeplinkListItemAction.edit,
+                    child: Text('Edit'),
+                  ),
+                  PopupMenuItem(
+                    value: _DeeplinkListItemAction.delete,
+                    child: Text('Delete'),
+                  ),
+                ];
+              },
+            ),
+        ],
       ),
     );
   }
@@ -64,3 +109,5 @@ class DeeplinkListItem extends StatelessWidget {
     return 'Opened ${deeplink.openCount} times';
   }
 }
+
+enum _DeeplinkListItemAction { edit, delete }
