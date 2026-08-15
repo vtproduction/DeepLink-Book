@@ -20,6 +20,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int? _processingDeeplinkId;
+  final _processingFavoriteIds = <int>{};
 
   @override
   Widget build(BuildContext context) {
@@ -56,7 +57,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               return DeeplinkListItem(
                 deeplink: deeplink,
                 isProcessing: _processingDeeplinkId == deeplink.id,
+                isFavoriteProcessing: _processingFavoriteIds.contains(
+                  deeplink.id,
+                ),
                 onTap: () => _openEditScreen(deeplink),
+                onFavoriteTap: () => _toggleFavorite(deeplink),
                 onEdit: () => _openEditScreen(deeplink),
                 onDuplicate: () => _duplicateDeeplink(deeplink),
                 onDelete: () => _confirmAndDeleteDeeplink(deeplink),
@@ -79,6 +84,46 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       AppRoute.editDeeplink.name,
       pathParameters: {'id': deeplink.id.toString()},
     );
+  }
+
+  Future<void> _toggleFavorite(Deeplink deeplink) async {
+    if (_processingFavoriteIds.contains(deeplink.id)) {
+      return;
+    }
+
+    setState(() {
+      _processingFavoriteIds.add(deeplink.id);
+    });
+
+    try {
+      final updated = await ref
+          .read(deeplinkRepositoryProvider)
+          .toggleFavorite(deeplink.id);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (!updated) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This deeplink no longer exists.')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to update favorite.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingFavoriteIds.remove(deeplink.id);
+        });
+      }
+    }
   }
 
   Future<void> _duplicateDeeplink(Deeplink deeplink) async {

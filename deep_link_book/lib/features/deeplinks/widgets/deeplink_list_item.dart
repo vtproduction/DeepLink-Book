@@ -8,7 +8,9 @@ class DeeplinkListItem extends StatelessWidget {
     super.key,
     required this.deeplink,
     this.isProcessing = false,
+    this.isFavoriteProcessing = false,
     this.onTap,
+    this.onFavoriteTap,
     this.onEdit,
     this.onDuplicate,
     this.onDelete,
@@ -16,7 +18,9 @@ class DeeplinkListItem extends StatelessWidget {
 
   final Deeplink deeplink;
   final bool isProcessing;
+  final bool isFavoriteProcessing;
   final VoidCallback? onTap;
+  final VoidCallback? onFavoriteTap;
   final VoidCallback? onEdit;
   final VoidCallback? onDuplicate;
   final VoidCallback? onDelete;
@@ -62,12 +66,24 @@ class DeeplinkListItem extends StatelessWidget {
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            deeplink.isFavorite ? Icons.star : Icons.star_border,
-            color: deeplink.isFavorite
-                ? colorScheme.primary
-                : colorScheme.onSurfaceVariant,
-          ),
+          if (isFavoriteProcessing)
+            const SizedBox.square(
+              dimension: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          else
+            IconButton(
+              tooltip: deeplink.isFavorite
+                  ? 'Remove ${deeplink.name} from favorites'
+                  : 'Add ${deeplink.name} to favorites',
+              onPressed: onFavoriteTap,
+              icon: Icon(
+                deeplink.isFavorite ? Icons.star : Icons.star_border,
+                color: deeplink.isFavorite
+                    ? colorScheme.primary
+                    : colorScheme.onSurfaceVariant,
+              ),
+            ),
           const SizedBox(width: AppSpacing.sm),
           if (isProcessing)
             const SizedBox.square(

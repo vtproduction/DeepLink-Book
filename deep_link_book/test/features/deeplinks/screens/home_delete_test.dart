@@ -13,6 +13,248 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('shows outlined icon for a non-favorite deeplink', (
+    WidgetTester tester,
+  ) async {
+    final deeplink = _testDeeplink(
+      id: 1,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+
+    await _pumpHome(tester, deeplinks: [deeplink]);
+
+    expect(find.byIcon(Icons.star_border), findsOneWidget);
+    expect(find.byIcon(Icons.star), findsNothing);
+  });
+
+  testWidgets('shows filled icon for a favorite deeplink', (
+    WidgetTester tester,
+  ) async {
+    final deeplink = _testDeeplink(
+      id: 1,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+      isFavorite: true,
+    );
+
+    await _pumpHome(tester, deeplinks: [deeplink]);
+
+    expect(find.byIcon(Icons.star), findsOneWidget);
+    expect(find.byIcon(Icons.star_border), findsNothing);
+  });
+
+  testWidgets('toggles favorite from false to true', (
+    WidgetTester tester,
+  ) async {
+    final context = _createDatabaseContext();
+    final id = await context.repository.createDeeplink(
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+    final initial = await context.repository.getDeeplinkById(id);
+    final deeplinksStream = StreamController<List<Deeplink>>();
+    addTearDown(deeplinksStream.close);
+
+    await _pumpHome(
+      tester,
+      database: context.database,
+      repository: context.repository,
+      deeplinksStream: deeplinksStream.stream,
+    );
+    deeplinksStream.add([initial!]);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Add Transfer Out to favorites'));
+    await tester.pumpAndSettle();
+
+    final updated = await context.repository.getDeeplinkById(id);
+    expect(updated?.isFavorite, isTrue);
+
+    deeplinksStream.add([updated!]);
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.star), findsOneWidget);
+  });
+
+  testWidgets('toggles favorite from true to false', (
+    WidgetTester tester,
+  ) async {
+    final context = _createDatabaseContext();
+    final id = await _insertDeeplink(
+      context.database,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+      isFavorite: true,
+    );
+    final initial = await context.repository.getDeeplinkById(id);
+    final deeplinksStream = StreamController<List<Deeplink>>();
+    addTearDown(deeplinksStream.close);
+
+    await _pumpHome(
+      tester,
+      database: context.database,
+      repository: context.repository,
+      deeplinksStream: deeplinksStream.stream,
+    );
+    deeplinksStream.add([initial!]);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Remove Transfer Out from favorites'));
+    await tester.pumpAndSettle();
+
+    final updated = await context.repository.getDeeplinkById(id);
+    expect(updated?.isFavorite, isFalse);
+
+    deeplinksStream.add([updated!]);
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.star_border), findsOneWidget);
+  });
+
+  testWidgets('favorite toggle preserves usage metadata', (
+    WidgetTester tester,
+  ) async {
+    final context = _createDatabaseContext();
+    final createdAt = DateTime(2026, 8, 15, 10);
+    final updatedAt = DateTime(2026, 8, 15, 10);
+    final lastOpenedAt = DateTime(2026, 8, 15, 11);
+    final id = await _insertDeeplink(
+      context.database,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+      openCount: 4,
+      lastOpenedAt: lastOpenedAt,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+    final initial = await context.repository.getDeeplinkById(id);
+
+    await _pumpHome(
+      tester,
+      database: context.database,
+      repository: context.repository,
+      deeplinks: [initial!],
+    );
+    await tester.tap(find.byTooltip('Add Transfer Out to favorites'));
+    await tester.pumpAndSettle();
+
+    final updated = await context.repository.getDeeplinkById(id);
+
+    expect(updated?.isFavorite, isTrue);
+    expect(updated?.openCount, 4);
+    expect(updated?.lastOpenedAt, lastOpenedAt);
+    expect(updated?.createdAt, createdAt);
+    expect(updated!.updatedAt.isAfter(updatedAt), isTrue);
+  });
+
+  testWidgets('shows a message when toggling a missing deeplink', (
+    WidgetTester tester,
+  ) async {
+    final deeplink = _testDeeplink(
+      id: 1,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+    final repository = MissingFavoriteRepository(deeplink);
+    addTearDown(repository.close);
+
+    await _pumpHome(tester, repository: repository, deeplinks: [deeplink]);
+    await tester.tap(find.byTooltip('Add Transfer Out to favorites'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('This deeplink no longer exists.'), findsOneWidget);
+    expect(find.byTooltip('Add Transfer Out to favorites'), findsOneWidget);
+  });
+
+  testWidgets('shows an error when favorite update fails', (
+    WidgetTester tester,
+  ) async {
+    final deeplink = _testDeeplink(
+      id: 1,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+    final repository = FailingFavoriteRepository(deeplink);
+    addTearDown(repository.close);
+
+    await _pumpHome(tester, repository: repository, deeplinks: [deeplink]);
+    await tester.tap(find.byTooltip('Add Transfer Out to favorites'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Unable to update favorite.'), findsOneWidget);
+    expect(find.byIcon(Icons.star_border), findsOneWidget);
+    expect(find.byTooltip('Add Transfer Out to favorites'), findsOneWidget);
+  });
+
+  testWidgets('prevents repeated favorite taps while processing', (
+    WidgetTester tester,
+  ) async {
+    final deeplink = _testDeeplink(
+      id: 1,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+    final repository = ControlledFavoriteRepository(deeplink);
+    addTearDown(repository.close);
+
+    await _pumpHome(tester, repository: repository, deeplinks: [deeplink]);
+    await tester.tap(find.byTooltip('Add Transfer Out to favorites'));
+    await tester.pump();
+
+    expect(repository.favoriteCallCount, 1);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byTooltip('Add Transfer Out to favorites'), findsNothing);
+
+    repository.completeFavorite(updated: false);
+    await tester.pumpAndSettle();
+
+    expect(repository.favoriteCallCount, 1);
+    expect(find.byTooltip('Add Transfer Out to favorites'), findsOneWidget);
+  });
+
+  testWidgets('favorite actions on different rows stay independent', (
+    WidgetTester tester,
+  ) async {
+    final first = _testDeeplink(
+      id: 1,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+    final second = _testDeeplink(
+      id: 2,
+      name: 'Profile',
+      url: 'ascendbank-qa://profile',
+    );
+    final repository = ControlledFavoriteRepository(first);
+    addTearDown(repository.close);
+
+    await _pumpHome(tester, repository: repository, deeplinks: [first, second]);
+    await tester.tap(find.byTooltip('Add Transfer Out to favorites'));
+    await tester.pump();
+
+    expect(find.byTooltip('Add Transfer Out to favorites'), findsNothing);
+    expect(find.byTooltip('Add Profile to favorites'), findsOneWidget);
+  });
+
+  testWidgets('favorite tap does not open Edit Deeplink', (
+    WidgetTester tester,
+  ) async {
+    final deeplink = _testDeeplink(
+      id: 1,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+    final repository = MissingFavoriteRepository(deeplink);
+    addTearDown(repository.close);
+
+    await _pumpHome(tester, repository: repository, deeplinks: [deeplink]);
+    await tester.tap(find.byTooltip('Add Transfer Out to favorites'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Edit Deeplink'), findsNothing);
+  });
+
   testWidgets('shows item menu actions', (WidgetTester tester) async {
     final deeplink = _testDeeplink(
       id: 1,
@@ -472,6 +714,7 @@ Deeplink _testDeeplink({
   required int id,
   required String name,
   required String url,
+  bool isFavorite = false,
 }) {
   final now = DateTime(2026, 8, 15, 10);
 
@@ -479,11 +722,40 @@ Deeplink _testDeeplink({
     id: id,
     name: name,
     url: url,
-    isFavorite: false,
+    isFavorite: isFavorite,
     openCount: 0,
     createdAt: now,
     updatedAt: now,
   );
+}
+
+Future<int> _insertDeeplink(
+  AppDatabase database, {
+  required String name,
+  required String url,
+  String? description,
+  bool isFavorite = false,
+  int openCount = 0,
+  DateTime? lastOpenedAt,
+  DateTime? createdAt,
+  DateTime? updatedAt,
+}) {
+  final now = DateTime(2026, 8, 15, 10);
+
+  return database
+      .into(database.deeplinks)
+      .insert(
+        DeeplinksCompanion.insert(
+          name: name,
+          url: url,
+          description: Value(description),
+          isFavorite: Value(isFavorite),
+          openCount: Value(openCount),
+          lastOpenedAt: Value(lastOpenedAt),
+          createdAt: createdAt ?? now,
+          updatedAt: updatedAt ?? now,
+        ),
+      );
 }
 
 class _DatabaseTestContext {
@@ -602,6 +874,61 @@ class ControlledDuplicateRepository extends MissingDuplicateRepository {
   void completeDuplicate({required int? duplicatedId}) {
     if (!_duplicateCompleter.isCompleted) {
       _duplicateCompleter.complete(duplicatedId);
+    }
+  }
+}
+
+class MissingFavoriteRepository extends DeeplinkRepository {
+  MissingFavoriteRepository(Deeplink deeplink)
+    : this._(deeplink, AppDatabase(NativeDatabase.memory()));
+
+  // ignore: use_super_parameters
+  MissingFavoriteRepository._(this.deeplink, AppDatabase database)
+    : _database = database,
+      super(database);
+
+  final Deeplink deeplink;
+  final AppDatabase _database;
+  var favoriteCallCount = 0;
+
+  @override
+  Future<Deeplink?> getDeeplinkById(int id) async {
+    return id == deeplink.id ? deeplink : null;
+  }
+
+  @override
+  Future<bool> toggleFavorite(int id) async {
+    favoriteCallCount++;
+    return false;
+  }
+
+  Future<void> close() => _database.close();
+}
+
+class FailingFavoriteRepository extends MissingFavoriteRepository {
+  FailingFavoriteRepository(super.deeplink);
+
+  @override
+  Future<bool> toggleFavorite(int id) {
+    favoriteCallCount++;
+    throw Exception('Favorite failed');
+  }
+}
+
+class ControlledFavoriteRepository extends MissingFavoriteRepository {
+  ControlledFavoriteRepository(super.deeplink);
+
+  final _favoriteCompleter = Completer<bool>();
+
+  @override
+  Future<bool> toggleFavorite(int id) {
+    favoriteCallCount++;
+    return _favoriteCompleter.future;
+  }
+
+  void completeFavorite({required bool updated}) {
+    if (!_favoriteCompleter.isCompleted) {
+      _favoriteCompleter.complete(updated);
     }
   }
 }
