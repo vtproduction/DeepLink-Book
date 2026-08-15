@@ -7,16 +7,18 @@ class DeeplinkListItem extends StatelessWidget {
   const DeeplinkListItem({
     super.key,
     required this.deeplink,
-    this.isDeleting = false,
+    this.isProcessing = false,
     this.onTap,
     this.onEdit,
+    this.onDuplicate,
     this.onDelete,
   });
 
   final Deeplink deeplink;
-  final bool isDeleting;
+  final bool isProcessing;
   final VoidCallback? onTap;
   final VoidCallback? onEdit;
+  final VoidCallback? onDuplicate;
   final VoidCallback? onDelete;
 
   @override
@@ -67,7 +69,7 @@ class DeeplinkListItem extends StatelessWidget {
                 : colorScheme.onSurfaceVariant,
           ),
           const SizedBox(width: AppSpacing.sm),
-          if (isDeleting)
+          if (isProcessing)
             const SizedBox.square(
               dimension: 24,
               child: CircularProgressIndicator(strokeWidth: 2),
@@ -79,6 +81,8 @@ class DeeplinkListItem extends StatelessWidget {
                 switch (action) {
                   case _DeeplinkListItemAction.edit:
                     onEdit?.call();
+                  case _DeeplinkListItemAction.duplicate:
+                    onDuplicate?.call();
                   case _DeeplinkListItemAction.delete:
                     onDelete?.call();
                 }
@@ -88,6 +92,10 @@ class DeeplinkListItem extends StatelessWidget {
                   PopupMenuItem(
                     value: _DeeplinkListItemAction.edit,
                     child: Text('Edit'),
+                  ),
+                  PopupMenuItem(
+                    value: _DeeplinkListItemAction.duplicate,
+                    child: Text('Duplicate'),
                   ),
                   PopupMenuItem(
                     value: _DeeplinkListItemAction.delete,
@@ -110,4 +118,4 @@ class DeeplinkListItem extends StatelessWidget {
   }
 }
 
-enum _DeeplinkListItemAction { edit, delete }
+enum _DeeplinkListItemAction { edit, duplicate, delete }

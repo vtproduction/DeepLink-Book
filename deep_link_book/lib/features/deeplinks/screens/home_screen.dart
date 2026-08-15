@@ -19,7 +19,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
-  int? _deletingDeeplinkId;
+  int? _processingDeeplinkId;
 
   @override
   Widget build(BuildContext context) {
@@ -55,9 +55,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
               return DeeplinkListItem(
                 deeplink: deeplink,
-                isDeleting: _deletingDeeplinkId == deeplink.id,
+                isProcessing: _processingDeeplinkId == deeplink.id,
                 onTap: () => _openEditScreen(deeplink),
                 onEdit: () => _openEditScreen(deeplink),
+                onDuplicate: () => _duplicateDeeplink(deeplink),
                 onDelete: () => _confirmAndDeleteDeeplink(deeplink),
               );
             },
@@ -80,8 +81,48 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  Future<void> _duplicateDeeplink(Deeplink deeplink) async {
+    if (_processingDeeplinkId != null) {
+      return;
+    }
+
+    setState(() {
+      _processingDeeplinkId = deeplink.id;
+    });
+
+    try {
+      final duplicatedId = await ref
+          .read(deeplinkRepositoryProvider)
+          .duplicateDeeplink(deeplink.id);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (duplicatedId == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This deeplink no longer exists.')),
+        );
+      }
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to duplicate deeplink.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _processingDeeplinkId = null;
+        });
+      }
+    }
+  }
+
   Future<void> _confirmAndDeleteDeeplink(Deeplink deeplink) async {
-    if (_deletingDeeplinkId != null) {
+    if (_processingDeeplinkId != null) {
       return;
     }
 
@@ -98,7 +139,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     }
 
     setState(() {
-      _deletingDeeplinkId = deeplink.id;
+      _processingDeeplinkId = deeplink.id;
     });
 
     try {
@@ -126,7 +167,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     } finally {
       if (mounted) {
         setState(() {
-          _deletingDeeplinkId = null;
+          _processingDeeplinkId = null;
         });
       }
     }
