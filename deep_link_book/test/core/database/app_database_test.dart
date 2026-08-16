@@ -14,7 +14,7 @@ void main() {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
 
-    expect(database.schemaVersion, 2);
+    expect(database.schemaVersion, 3);
   });
 
   test('can execute a simple SQL query', () async {
@@ -74,6 +74,19 @@ void main() {
         .getSingleOrNull();
 
     expect(table?.read<String>('name'), 'deeplinks');
+  });
+
+  test('fresh database creates the deeplink history table', () async {
+    final database = AppDatabase(NativeDatabase.memory());
+    addTearDown(database.close);
+
+    final table = await database
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'deeplink_histories'",
+        )
+        .getSingleOrNull();
+
+    expect(table?.read<String>('name'), 'deeplink_histories');
   });
 
   test('inserts a minimal deeplink with default values', () async {
@@ -158,7 +171,7 @@ void main() {
     expect(firstId, isNot(secondId));
   });
 
-  test('migrates a version 1 database to version 2', () async {
+  test('migrates a version 1 database to version 3', () async {
     final tempDirectory = await Directory.systemTemp.createTemp(
       'deeplink_manager_migration_test_',
     );
@@ -182,6 +195,71 @@ void main() {
         .getSingle();
 
     expect(table?.read<String>('name'), 'deeplinks');
-    expect(version, 2);
+    expect(version, 3);
+  });
+
+  test('migrates version 2 database while preserving deeplinks', () async {
+    final tempDirectory = await Directory.systemTemp.createTemp(
+      'deeplink_manager_history_migration_test_',
+    );
+    addTearDown(() => tempDirectory.delete(recursive: true));
+    final databaseFile = File(path.join(tempDirectory.path, 'test.sqlite'));
+    final legacyDatabase = sqlite.sqlite3.open(databaseFile.path);
+    legacyDatabase
+      ..execute('''
+        CREATE TABLE deeplinks (
+          id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          url TEXT NOT NULL,
+          description TEXT NULL,
+          is_favorite INTEGER NOT NULL DEFAULT 0 CHECK ("is_favorite" IN (0, 1)),
+          open_count INTEGER NOT NULL DEFAULT 0,
+          last_opened_at INTEGER NULL,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+      ''')
+      ..execute(
+        '''
+        INSERT INTO deeplinks (
+          name,
+          url,
+          description,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, ?, ?);
+      ''',
+        [
+          'Transfer QA',
+          'deeplinktest://transfer?env=qa',
+          'Existing saved deeplink',
+          DateTime(2026, 8, 11, 10).millisecondsSinceEpoch,
+          DateTime(2026, 8, 11, 10).millisecondsSinceEpoch,
+        ],
+      )
+      ..execute('PRAGMA user_version = 2')
+      ..close();
+
+    final database = AppDatabase(NativeDatabase(databaseFile));
+    addTearDown(database.close);
+
+    final deeplink = await database.select(database.deeplinks).getSingle();
+    final historyTable = await database
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'deeplink_histories'",
+        )
+        .getSingleOrNull();
+    final history = await database.select(database.deeplinkHistories).get();
+    final version = await database
+        .customSelect('PRAGMA user_version')
+        .map((row) => row.read<int>('user_version'))
+        .getSingle();
+
+    expect(deeplink.name, 'Transfer QA');
+    expect(deeplink.url, 'deeplinktest://transfer?env=qa');
+    expect(deeplink.description, 'Existing saved deeplink');
+    expect(historyTable?.read<String>('name'), 'deeplink_histories');
+    expect(history, isEmpty);
+    expect(version, 3);
   });
 }

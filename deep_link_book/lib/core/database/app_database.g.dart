@@ -562,15 +562,475 @@ class DeeplinksCompanion extends UpdateCompanion<Deeplink> {
   }
 }
 
+class $DeeplinkHistoriesTable extends DeeplinkHistories
+    with TableInfo<$DeeplinkHistoriesTable, DeeplinkHistory> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DeeplinkHistoriesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _deeplinkIdMeta = const VerificationMeta(
+    'deeplinkId',
+  );
+  @override
+  late final GeneratedColumn<int> deeplinkId = GeneratedColumn<int>(
+    'deeplink_id',
+    aliasedName,
+    true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _urlMeta = const VerificationMeta('url');
+  @override
+  late final GeneratedColumn<String> url = GeneratedColumn<String>(
+    'url',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _isSuccessMeta = const VerificationMeta(
+    'isSuccess',
+  );
+  @override
+  late final GeneratedColumn<bool> isSuccess = GeneratedColumn<bool>(
+    'is_success',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_success" IN (0, 1))',
+    ),
+  );
+  static const VerificationMeta _errorMessageMeta = const VerificationMeta(
+    'errorMessage',
+  );
+  @override
+  late final GeneratedColumn<String> errorMessage = GeneratedColumn<String>(
+    'error_message',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _openedAtMeta = const VerificationMeta(
+    'openedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> openedAt = GeneratedColumn<DateTime>(
+    'opened_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    deeplinkId,
+    name,
+    url,
+    isSuccess,
+    errorMessage,
+    openedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'deeplink_histories';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<DeeplinkHistory> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('deeplink_id')) {
+      context.handle(
+        _deeplinkIdMeta,
+        deeplinkId.isAcceptableOrUnknown(data['deeplink_id']!, _deeplinkIdMeta),
+      );
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('url')) {
+      context.handle(
+        _urlMeta,
+        url.isAcceptableOrUnknown(data['url']!, _urlMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_urlMeta);
+    }
+    if (data.containsKey('is_success')) {
+      context.handle(
+        _isSuccessMeta,
+        isSuccess.isAcceptableOrUnknown(data['is_success']!, _isSuccessMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_isSuccessMeta);
+    }
+    if (data.containsKey('error_message')) {
+      context.handle(
+        _errorMessageMeta,
+        errorMessage.isAcceptableOrUnknown(
+          data['error_message']!,
+          _errorMessageMeta,
+        ),
+      );
+    }
+    if (data.containsKey('opened_at')) {
+      context.handle(
+        _openedAtMeta,
+        openedAt.isAcceptableOrUnknown(data['opened_at']!, _openedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_openedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  DeeplinkHistory map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return DeeplinkHistory(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      deeplinkId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}deeplink_id'],
+      ),
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      url: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}url'],
+      )!,
+      isSuccess: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_success'],
+      )!,
+      errorMessage: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}error_message'],
+      ),
+      openedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}opened_at'],
+      )!,
+    );
+  }
+
+  @override
+  $DeeplinkHistoriesTable createAlias(String alias) {
+    return $DeeplinkHistoriesTable(attachedDatabase, alias);
+  }
+}
+
+class DeeplinkHistory extends DataClass implements Insertable<DeeplinkHistory> {
+  final int id;
+  final int? deeplinkId;
+  final String name;
+  final String url;
+  final bool isSuccess;
+  final String? errorMessage;
+  final DateTime openedAt;
+  const DeeplinkHistory({
+    required this.id,
+    this.deeplinkId,
+    required this.name,
+    required this.url,
+    required this.isSuccess,
+    this.errorMessage,
+    required this.openedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    if (!nullToAbsent || deeplinkId != null) {
+      map['deeplink_id'] = Variable<int>(deeplinkId);
+    }
+    map['name'] = Variable<String>(name);
+    map['url'] = Variable<String>(url);
+    map['is_success'] = Variable<bool>(isSuccess);
+    if (!nullToAbsent || errorMessage != null) {
+      map['error_message'] = Variable<String>(errorMessage);
+    }
+    map['opened_at'] = Variable<DateTime>(openedAt);
+    return map;
+  }
+
+  DeeplinkHistoriesCompanion toCompanion(bool nullToAbsent) {
+    return DeeplinkHistoriesCompanion(
+      id: Value(id),
+      deeplinkId: deeplinkId == null && nullToAbsent
+          ? const Value.absent()
+          : Value(deeplinkId),
+      name: Value(name),
+      url: Value(url),
+      isSuccess: Value(isSuccess),
+      errorMessage: errorMessage == null && nullToAbsent
+          ? const Value.absent()
+          : Value(errorMessage),
+      openedAt: Value(openedAt),
+    );
+  }
+
+  factory DeeplinkHistory.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return DeeplinkHistory(
+      id: serializer.fromJson<int>(json['id']),
+      deeplinkId: serializer.fromJson<int?>(json['deeplinkId']),
+      name: serializer.fromJson<String>(json['name']),
+      url: serializer.fromJson<String>(json['url']),
+      isSuccess: serializer.fromJson<bool>(json['isSuccess']),
+      errorMessage: serializer.fromJson<String?>(json['errorMessage']),
+      openedAt: serializer.fromJson<DateTime>(json['openedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'deeplinkId': serializer.toJson<int?>(deeplinkId),
+      'name': serializer.toJson<String>(name),
+      'url': serializer.toJson<String>(url),
+      'isSuccess': serializer.toJson<bool>(isSuccess),
+      'errorMessage': serializer.toJson<String?>(errorMessage),
+      'openedAt': serializer.toJson<DateTime>(openedAt),
+    };
+  }
+
+  DeeplinkHistory copyWith({
+    int? id,
+    Value<int?> deeplinkId = const Value.absent(),
+    String? name,
+    String? url,
+    bool? isSuccess,
+    Value<String?> errorMessage = const Value.absent(),
+    DateTime? openedAt,
+  }) => DeeplinkHistory(
+    id: id ?? this.id,
+    deeplinkId: deeplinkId.present ? deeplinkId.value : this.deeplinkId,
+    name: name ?? this.name,
+    url: url ?? this.url,
+    isSuccess: isSuccess ?? this.isSuccess,
+    errorMessage: errorMessage.present ? errorMessage.value : this.errorMessage,
+    openedAt: openedAt ?? this.openedAt,
+  );
+  DeeplinkHistory copyWithCompanion(DeeplinkHistoriesCompanion data) {
+    return DeeplinkHistory(
+      id: data.id.present ? data.id.value : this.id,
+      deeplinkId: data.deeplinkId.present
+          ? data.deeplinkId.value
+          : this.deeplinkId,
+      name: data.name.present ? data.name.value : this.name,
+      url: data.url.present ? data.url.value : this.url,
+      isSuccess: data.isSuccess.present ? data.isSuccess.value : this.isSuccess,
+      errorMessage: data.errorMessage.present
+          ? data.errorMessage.value
+          : this.errorMessage,
+      openedAt: data.openedAt.present ? data.openedAt.value : this.openedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DeeplinkHistory(')
+          ..write('id: $id, ')
+          ..write('deeplinkId: $deeplinkId, ')
+          ..write('name: $name, ')
+          ..write('url: $url, ')
+          ..write('isSuccess: $isSuccess, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('openedAt: $openedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode =>
+      Object.hash(id, deeplinkId, name, url, isSuccess, errorMessage, openedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is DeeplinkHistory &&
+          other.id == this.id &&
+          other.deeplinkId == this.deeplinkId &&
+          other.name == this.name &&
+          other.url == this.url &&
+          other.isSuccess == this.isSuccess &&
+          other.errorMessage == this.errorMessage &&
+          other.openedAt == this.openedAt);
+}
+
+class DeeplinkHistoriesCompanion extends UpdateCompanion<DeeplinkHistory> {
+  final Value<int> id;
+  final Value<int?> deeplinkId;
+  final Value<String> name;
+  final Value<String> url;
+  final Value<bool> isSuccess;
+  final Value<String?> errorMessage;
+  final Value<DateTime> openedAt;
+  const DeeplinkHistoriesCompanion({
+    this.id = const Value.absent(),
+    this.deeplinkId = const Value.absent(),
+    this.name = const Value.absent(),
+    this.url = const Value.absent(),
+    this.isSuccess = const Value.absent(),
+    this.errorMessage = const Value.absent(),
+    this.openedAt = const Value.absent(),
+  });
+  DeeplinkHistoriesCompanion.insert({
+    this.id = const Value.absent(),
+    this.deeplinkId = const Value.absent(),
+    required String name,
+    required String url,
+    required bool isSuccess,
+    this.errorMessage = const Value.absent(),
+    required DateTime openedAt,
+  }) : name = Value(name),
+       url = Value(url),
+       isSuccess = Value(isSuccess),
+       openedAt = Value(openedAt);
+  static Insertable<DeeplinkHistory> custom({
+    Expression<int>? id,
+    Expression<int>? deeplinkId,
+    Expression<String>? name,
+    Expression<String>? url,
+    Expression<bool>? isSuccess,
+    Expression<String>? errorMessage,
+    Expression<DateTime>? openedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (deeplinkId != null) 'deeplink_id': deeplinkId,
+      if (name != null) 'name': name,
+      if (url != null) 'url': url,
+      if (isSuccess != null) 'is_success': isSuccess,
+      if (errorMessage != null) 'error_message': errorMessage,
+      if (openedAt != null) 'opened_at': openedAt,
+    });
+  }
+
+  DeeplinkHistoriesCompanion copyWith({
+    Value<int>? id,
+    Value<int?>? deeplinkId,
+    Value<String>? name,
+    Value<String>? url,
+    Value<bool>? isSuccess,
+    Value<String?>? errorMessage,
+    Value<DateTime>? openedAt,
+  }) {
+    return DeeplinkHistoriesCompanion(
+      id: id ?? this.id,
+      deeplinkId: deeplinkId ?? this.deeplinkId,
+      name: name ?? this.name,
+      url: url ?? this.url,
+      isSuccess: isSuccess ?? this.isSuccess,
+      errorMessage: errorMessage ?? this.errorMessage,
+      openedAt: openedAt ?? this.openedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (deeplinkId.present) {
+      map['deeplink_id'] = Variable<int>(deeplinkId.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (url.present) {
+      map['url'] = Variable<String>(url.value);
+    }
+    if (isSuccess.present) {
+      map['is_success'] = Variable<bool>(isSuccess.value);
+    }
+    if (errorMessage.present) {
+      map['error_message'] = Variable<String>(errorMessage.value);
+    }
+    if (openedAt.present) {
+      map['opened_at'] = Variable<DateTime>(openedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DeeplinkHistoriesCompanion(')
+          ..write('id: $id, ')
+          ..write('deeplinkId: $deeplinkId, ')
+          ..write('name: $name, ')
+          ..write('url: $url, ')
+          ..write('isSuccess: $isSuccess, ')
+          ..write('errorMessage: $errorMessage, ')
+          ..write('openedAt: $openedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
   late final $DeeplinksTable deeplinks = $DeeplinksTable(this);
+  late final $DeeplinkHistoriesTable deeplinkHistories =
+      $DeeplinkHistoriesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
-  List<DatabaseSchemaEntity> get allSchemaEntities => [deeplinks];
+  List<DatabaseSchemaEntity> get allSchemaEntities => [
+    deeplinks,
+    deeplinkHistories,
+  ];
 }
 
 typedef $$DeeplinksTableCreateCompanionBuilder =
@@ -843,10 +1303,257 @@ typedef $$DeeplinksTableProcessedTableManager =
       Deeplink,
       PrefetchHooks Function()
     >;
+typedef $$DeeplinkHistoriesTableCreateCompanionBuilder =
+    DeeplinkHistoriesCompanion Function({
+      Value<int> id,
+      Value<int?> deeplinkId,
+      required String name,
+      required String url,
+      required bool isSuccess,
+      Value<String?> errorMessage,
+      required DateTime openedAt,
+    });
+typedef $$DeeplinkHistoriesTableUpdateCompanionBuilder =
+    DeeplinkHistoriesCompanion Function({
+      Value<int> id,
+      Value<int?> deeplinkId,
+      Value<String> name,
+      Value<String> url,
+      Value<bool> isSuccess,
+      Value<String?> errorMessage,
+      Value<DateTime> openedAt,
+    });
+
+class $$DeeplinkHistoriesTableFilterComposer
+    extends Composer<_$AppDatabase, $DeeplinkHistoriesTable> {
+  $$DeeplinkHistoriesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get deeplinkId => $composableBuilder(
+    column: $table.deeplinkId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSuccess => $composableBuilder(
+    column: $table.isSuccess,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get openedAt => $composableBuilder(
+    column: $table.openedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DeeplinkHistoriesTableOrderingComposer
+    extends Composer<_$AppDatabase, $DeeplinkHistoriesTable> {
+  $$DeeplinkHistoriesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get deeplinkId => $composableBuilder(
+    column: $table.deeplinkId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get url => $composableBuilder(
+    column: $table.url,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<bool> get isSuccess => $composableBuilder(
+    column: $table.isSuccess,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get openedAt => $composableBuilder(
+    column: $table.openedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DeeplinkHistoriesTableAnnotationComposer
+    extends Composer<_$AppDatabase, $DeeplinkHistoriesTable> {
+  $$DeeplinkHistoriesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<int> get deeplinkId => $composableBuilder(
+    column: $table.deeplinkId,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<String> get url =>
+      $composableBuilder(column: $table.url, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSuccess =>
+      $composableBuilder(column: $table.isSuccess, builder: (column) => column);
+
+  GeneratedColumn<String> get errorMessage => $composableBuilder(
+    column: $table.errorMessage,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get openedAt =>
+      $composableBuilder(column: $table.openedAt, builder: (column) => column);
+}
+
+class $$DeeplinkHistoriesTableTableManager
+    extends
+        RootTableManager<
+          _$AppDatabase,
+          $DeeplinkHistoriesTable,
+          DeeplinkHistory,
+          $$DeeplinkHistoriesTableFilterComposer,
+          $$DeeplinkHistoriesTableOrderingComposer,
+          $$DeeplinkHistoriesTableAnnotationComposer,
+          $$DeeplinkHistoriesTableCreateCompanionBuilder,
+          $$DeeplinkHistoriesTableUpdateCompanionBuilder,
+          (
+            DeeplinkHistory,
+            BaseReferences<
+              _$AppDatabase,
+              $DeeplinkHistoriesTable,
+              DeeplinkHistory
+            >,
+          ),
+          DeeplinkHistory,
+          PrefetchHooks Function()
+        > {
+  $$DeeplinkHistoriesTableTableManager(
+    _$AppDatabase db,
+    $DeeplinkHistoriesTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DeeplinkHistoriesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DeeplinkHistoriesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DeeplinkHistoriesTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int?> deeplinkId = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<String> url = const Value.absent(),
+                Value<bool> isSuccess = const Value.absent(),
+                Value<String?> errorMessage = const Value.absent(),
+                Value<DateTime> openedAt = const Value.absent(),
+              }) => DeeplinkHistoriesCompanion(
+                id: id,
+                deeplinkId: deeplinkId,
+                name: name,
+                url: url,
+                isSuccess: isSuccess,
+                errorMessage: errorMessage,
+                openedAt: openedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<int?> deeplinkId = const Value.absent(),
+                required String name,
+                required String url,
+                required bool isSuccess,
+                Value<String?> errorMessage = const Value.absent(),
+                required DateTime openedAt,
+              }) => DeeplinkHistoriesCompanion.insert(
+                id: id,
+                deeplinkId: deeplinkId,
+                name: name,
+                url: url,
+                isSuccess: isSuccess,
+                errorMessage: errorMessage,
+                openedAt: openedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DeeplinkHistoriesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$AppDatabase,
+      $DeeplinkHistoriesTable,
+      DeeplinkHistory,
+      $$DeeplinkHistoriesTableFilterComposer,
+      $$DeeplinkHistoriesTableOrderingComposer,
+      $$DeeplinkHistoriesTableAnnotationComposer,
+      $$DeeplinkHistoriesTableCreateCompanionBuilder,
+      $$DeeplinkHistoriesTableUpdateCompanionBuilder,
+      (
+        DeeplinkHistory,
+        BaseReferences<_$AppDatabase, $DeeplinkHistoriesTable, DeeplinkHistory>,
+      ),
+      DeeplinkHistory,
+      PrefetchHooks Function()
+    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
   $AppDatabaseManager(this._db);
   $$DeeplinksTableTableManager get deeplinks =>
       $$DeeplinksTableTableManager(_db, _db.deeplinks);
+  $$DeeplinkHistoriesTableTableManager get deeplinkHistories =>
+      $$DeeplinkHistoriesTableTableManager(_db, _db.deeplinkHistories);
 }
