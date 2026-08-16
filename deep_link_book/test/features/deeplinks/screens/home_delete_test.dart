@@ -7,6 +7,7 @@ import 'package:deep_link_book/core/database/app_database.dart';
 import 'package:deep_link_book/core/database/database_provider.dart';
 import 'package:deep_link_book/features/deeplinks/data/deeplink_repository.dart';
 import 'package:deep_link_book/features/deeplinks/providers/deeplink_providers.dart';
+import 'package:deep_link_book/features/history/data/history_repository.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -66,11 +67,18 @@ void main() {
     await _tapOpen(tester, 'Broken');
 
     final unchanged = await context.repository.getDeeplinkById(id);
+    final history = await context.historyRepository.getAllHistory();
 
     expect(launcher.openedUris, isEmpty);
     expect(find.text('Enter a valid deeplink URL.'), findsOneWidget);
     expect(unchanged?.openCount, 0);
     expect(unchanged?.lastOpenedAt, isNull);
+    expect(history, hasLength(1));
+    expect(history.single.deeplinkId, id);
+    expect(history.single.name, 'Broken');
+    expect(history.single.url, 'transfer_out');
+    expect(history.single.isSuccess, isFalse);
+    expect(history.single.errorMessage, 'Invalid deeplink URL.');
   });
 
   testWidgets('successful open updates usage metadata', (
@@ -99,8 +107,15 @@ void main() {
     await _tapOpen(tester, 'Transfer Out');
 
     final updated = await context.repository.getDeeplinkById(id);
+    final history = await context.historyRepository.getAllHistory();
     expect(updated?.openCount, 1);
     expect(updated?.lastOpenedAt, isNotNull);
+    expect(history, hasLength(1));
+    expect(history.single.deeplinkId, id);
+    expect(history.single.name, 'Transfer Out');
+    expect(history.single.url, 'ascendbank-qa://transfer_out');
+    expect(history.single.isSuccess, isTrue);
+    expect(history.single.errorMessage, isNull);
 
     deeplinksStream.add([updated!]);
     await tester.pumpAndSettle();
@@ -131,8 +146,11 @@ void main() {
     await _tapOpen(tester, 'Transfer Out');
 
     final updated = await context.repository.getDeeplinkById(id);
+    final history = await context.historyRepository.getAllHistory();
 
     expect(updated?.openCount, 2);
+    expect(history, hasLength(2));
+    expect(history.every((item) => item.isSuccess), isTrue);
   });
 
   testWidgets('failed launch does not update usage', (
@@ -160,10 +178,15 @@ void main() {
     await _tapOpen(tester, 'Transfer Out');
 
     final unchanged = await context.repository.getDeeplinkById(id);
+    final history = await context.historyRepository.getAllHistory();
 
     expect(find.text('No app can open this deeplink.'), findsOneWidget);
     expect(unchanged?.openCount, 3);
     expect(unchanged?.lastOpenedAt, lastOpenedAt);
+    expect(history, hasLength(1));
+    expect(history.single.deeplinkId, id);
+    expect(history.single.isSuccess, isFalse);
+    expect(history.single.errorMessage, 'No app can open this deeplink.');
   });
 
   testWidgets('launcher exception shows an error and does not record usage', (
@@ -176,11 +199,14 @@ void main() {
     );
     final launcher = ThrowingDeeplinkLauncher();
     final repository = RecordingRepository(deeplink);
+    final historyRepository = RecordingHistoryRepository();
     addTearDown(repository.close);
+    addTearDown(historyRepository.close);
 
     await _pumpHome(
       tester,
       repository: repository,
+      historyRepository: historyRepository,
       launcher: launcher,
       deeplinks: [deeplink],
     );
@@ -188,6 +214,16 @@ void main() {
 
     expect(find.text('Unable to open deeplink.'), findsOneWidget);
     expect(repository.recordCallCount, 0);
+    expect(historyRepository.createCallCount, 1);
+    expect(historyRepository.created.single.isSuccess, isFalse);
+    expect(
+      historyRepository.created.single.errorMessage,
+      'Unable to open deeplink.',
+    );
+    expect(
+      historyRepository.created.single.errorMessage,
+      isNot(contains('Launch failed')),
+    );
     expect(find.byTooltip('Open Transfer Out'), findsOneWidget);
   });
 
@@ -201,11 +237,14 @@ void main() {
     );
     final launcher = TestDeeplinkLauncher();
     final repository = RecordingRepository(deeplink, recordResult: false);
+    final historyRepository = RecordingHistoryRepository();
     addTearDown(repository.close);
+    addTearDown(historyRepository.close);
 
     await _pumpHome(
       tester,
       repository: repository,
+      historyRepository: historyRepository,
       launcher: launcher,
       deeplinks: [deeplink],
     );
@@ -213,6 +252,8 @@ void main() {
 
     expect(launcher.openedUris, hasLength(1));
     expect(repository.recordCallCount, 1);
+    expect(historyRepository.createCallCount, 1);
+    expect(historyRepository.created.single.isSuccess, isTrue);
     expect(find.text('Unable to open deeplink.'), findsNothing);
     expect(
       find.text('Deeplink opened, but its usage could not be updated.'),
@@ -230,11 +271,14 @@ void main() {
     );
     final launcher = TestDeeplinkLauncher();
     final repository = RecordingRepository(deeplink, throwsOnRecord: true);
+    final historyRepository = RecordingHistoryRepository();
     addTearDown(repository.close);
+    addTearDown(historyRepository.close);
 
     await _pumpHome(
       tester,
       repository: repository,
+      historyRepository: historyRepository,
       launcher: launcher,
       deeplinks: [deeplink],
     );
@@ -242,6 +286,8 @@ void main() {
 
     expect(launcher.openedUris, hasLength(1));
     expect(repository.recordCallCount, 1);
+    expect(historyRepository.createCallCount, 1);
+    expect(historyRepository.created.single.isSuccess, isTrue);
     expect(find.text('Unable to open deeplink.'), findsNothing);
     expect(
       find.text('Deeplink opened, but usage could not be saved.'),
@@ -271,7 +317,8 @@ void main() {
     expect(openButton.onPressed, isNull);
 
     launcher.complete(result: false);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump();
 
     expect(launcher.openedUris, hasLength(1));
     expect(find.byTooltip('Open Transfer Out'), findsOneWidget);
@@ -313,6 +360,97 @@ void main() {
     await _tapOpen(tester, 'Transfer Out');
 
     expect(find.text('Edit Deeplink'), findsNothing);
+  });
+
+  testWidgets('history keeps the opened snapshot after the source changes', (
+    WidgetTester tester,
+  ) async {
+    final context = _createDatabaseContext();
+    final id = await context.repository.createDeeplink(
+      name: 'Transfer QA',
+      url: 'deeplinktest://transfer?env=qa',
+    );
+    final deeplink = await context.repository.getDeeplinkById(id);
+    final launcher = TestDeeplinkLauncher();
+
+    await _pumpHome(
+      tester,
+      database: context.database,
+      repository: context.repository,
+      launcher: launcher,
+      deeplinks: [deeplink!],
+    );
+    await _tapOpen(tester, 'Transfer QA');
+    await context.repository.updateDeeplink(
+      id: id,
+      name: 'Transfer UAT',
+      url: 'deeplinktest://transfer?env=uat',
+    );
+
+    final history = await context.historyRepository.getAllHistory();
+
+    expect(history, hasLength(1));
+    expect(history.single.name, 'Transfer QA');
+    expect(history.single.url, 'deeplinktest://transfer?env=qa');
+  });
+
+  testWidgets(
+    'successful launch still updates usage when history insert fails',
+    (WidgetTester tester) async {
+      final deeplink = _testDeeplink(
+        id: 1,
+        name: 'Transfer Out',
+        url: 'ascendbank-qa://transfer_out',
+      );
+      final launcher = TestDeeplinkLauncher();
+      final repository = RecordingRepository(deeplink);
+      final historyRepository = FailingHistoryRepository();
+      addTearDown(repository.close);
+      addTearDown(historyRepository.close);
+
+      await _pumpHome(
+        tester,
+        repository: repository,
+        historyRepository: historyRepository,
+        launcher: launcher,
+        deeplinks: [deeplink],
+      );
+      await _tapOpen(tester, 'Transfer Out');
+
+      expect(launcher.openedUris, hasLength(1));
+      expect(repository.recordCallCount, 1);
+      expect(historyRepository.createCallCount, 1);
+      expect(find.text('Unable to open deeplink.'), findsNothing);
+      expect(
+        find.text('Deeplink opened, but history could not be saved.'),
+        findsOneWidget,
+      );
+    },
+  );
+
+  testWidgets('failed launch still shows failure when history insert fails', (
+    WidgetTester tester,
+  ) async {
+    final deeplink = _testDeeplink(
+      id: 1,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+    final launcher = TestDeeplinkLauncher(result: false);
+    final historyRepository = FailingHistoryRepository();
+    addTearDown(historyRepository.close);
+
+    await _pumpHome(
+      tester,
+      historyRepository: historyRepository,
+      launcher: launcher,
+      deeplinks: [deeplink],
+    );
+    await _tapOpen(tester, 'Transfer Out');
+
+    expect(launcher.openedUris, hasLength(1));
+    expect(historyRepository.createCallCount, 1);
+    expect(find.text('No app can open this deeplink.'), findsOneWidget);
   });
 
   testWidgets('shows outlined icon for a non-favorite deeplink', (
@@ -974,6 +1112,7 @@ Future<void> _pumpHome(
   WidgetTester tester, {
   AppDatabase? database,
   DeeplinkRepository? repository,
+  HistoryRepository? historyRepository,
   DeeplinkLauncher? launcher,
   List<Deeplink>? deeplinks,
   Stream<List<Deeplink>>? deeplinksStream,
@@ -984,6 +1123,8 @@ Future<void> _pumpHome(
         if (database != null) appDatabaseProvider.overrideWithValue(database),
         if (repository != null)
           deeplinkRepositoryProvider.overrideWithValue(repository),
+        if (historyRepository != null)
+          historyRepositoryProvider.overrideWithValue(historyRepository),
         if (launcher != null)
           deeplinkLauncherProvider.overrideWithValue(launcher),
         if (deeplinks != null)
@@ -1016,9 +1157,14 @@ Future<void> _openDeleteDialog(WidgetTester tester, String name) async {
 _DatabaseTestContext _createDatabaseContext() {
   final database = AppDatabase(NativeDatabase.memory());
   final repository = DeeplinkRepository(database);
+  final historyRepository = HistoryRepository(database);
   addTearDown(database.close);
 
-  return _DatabaseTestContext(database: database, repository: repository);
+  return _DatabaseTestContext(
+    database: database,
+    repository: repository,
+    historyRepository: historyRepository,
+  );
 }
 
 Deeplink _testDeeplink({
@@ -1073,10 +1219,12 @@ class _DatabaseTestContext {
   const _DatabaseTestContext({
     required this.database,
     required this.repository,
+    required this.historyRepository,
   });
 
   final AppDatabase database;
   final DeeplinkRepository repository;
+  final HistoryRepository historyRepository;
 }
 
 class MissingDeleteRepository extends DeeplinkRepository {
@@ -1328,4 +1476,70 @@ class RecordingRepository extends DeeplinkRepository {
   }
 
   Future<void> close() => _database.close();
+}
+
+class RecordingHistoryRepository extends HistoryRepository {
+  RecordingHistoryRepository() : this._(AppDatabase(NativeDatabase.memory()));
+
+  // ignore: use_super_parameters
+  RecordingHistoryRepository._(AppDatabase database)
+    : _database = database,
+      super(database);
+
+  final AppDatabase _database;
+  final created = <_RecordedHistory>[];
+  var createCallCount = 0;
+
+  @override
+  Future<int> createHistory({
+    int? deeplinkId,
+    required String name,
+    required String url,
+    required bool isSuccess,
+    String? errorMessage,
+  }) async {
+    createCallCount++;
+    created.add(
+      _RecordedHistory(
+        deeplinkId: deeplinkId,
+        name: name,
+        url: url,
+        isSuccess: isSuccess,
+        errorMessage: errorMessage,
+      ),
+    );
+    return createCallCount;
+  }
+
+  Future<void> close() => _database.close();
+}
+
+class FailingHistoryRepository extends RecordingHistoryRepository {
+  @override
+  Future<int> createHistory({
+    int? deeplinkId,
+    required String name,
+    required String url,
+    required bool isSuccess,
+    String? errorMessage,
+  }) {
+    createCallCount++;
+    throw Exception('History insert failed');
+  }
+}
+
+class _RecordedHistory {
+  const _RecordedHistory({
+    required this.deeplinkId,
+    required this.name,
+    required this.url,
+    required this.isSuccess,
+    required this.errorMessage,
+  });
+
+  final int? deeplinkId;
+  final String name;
+  final String url;
+  final bool isSuccess;
+  final String? errorMessage;
 }

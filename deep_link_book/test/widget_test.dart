@@ -5,6 +5,7 @@ import 'package:deep_link_book/core/database/app_database.dart';
 import 'package:deep_link_book/core/widgets/app_confirm_dialog.dart';
 import 'package:deep_link_book/core/widgets/app_empty_state.dart';
 import 'package:deep_link_book/features/deeplinks/providers/deeplink_providers.dart';
+import 'package:deep_link_book/features/history/providers/history_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -57,7 +58,7 @@ void main() {
     await tester.tap(find.widgetWithText(NavigationDestination, 'History'));
     await tester.pumpAndSettle();
 
-    expect(find.text('History screen placeholder'), findsOneWidget);
+    expect(find.text('No history yet'), findsOneWidget);
     expect(find.byType(NavigationBar), findsOneWidget);
   });
 
@@ -266,12 +267,16 @@ Future<void> pumpApp(
   WidgetTester tester, {
   List<Deeplink>? deeplinks,
   AsyncValue<List<Deeplink>>? deeplinksValue,
+  AsyncValue<List<DeeplinkHistory>>? historyValue,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         deeplinksProvider.overrideWithValue(
           deeplinksValue ?? AsyncValue.data(deeplinks ?? const []),
+        ),
+        historyProvider.overrideWithValue(
+          historyValue ?? const AsyncValue.data([]),
         ),
       ],
       child: App(router: createAppRouter()),

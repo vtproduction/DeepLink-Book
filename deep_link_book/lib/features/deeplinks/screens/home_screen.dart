@@ -12,6 +12,7 @@ import '../data/deeplink_repository.dart';
 import '../providers/deeplink_providers.dart';
 import '../validation/deeplink_validator.dart';
 import '../widgets/deeplink_list_item.dart';
+import '../../history/data/history_repository.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -21,6 +22,10 @@ class HomeScreen extends ConsumerStatefulWidget {
 }
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
+  static const _invalidHistoryMessage = 'Invalid deeplink URL.';
+  static const _noHandlerMessage = 'No app can open this deeplink.';
+  static const _unableToOpenMessage = 'Unable to open deeplink.';
+
   int? _processingDeeplinkId;
   final _processingFavoriteIds = <int>{};
   final _openingDeeplinkIds = <int>{};
@@ -96,21 +101,34 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       return;
     }
 
-    final trimmedUrl = deeplink.url.trim();
-    final validationError = DeeplinkValidator.validateUrl(trimmedUrl);
-
-    if (validationError != null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(validationError)));
-      return;
-    }
-
     setState(() {
       _openingDeeplinkIds.add(deeplink.id);
     });
 
     try {
+      final trimmedUrl = deeplink.url.trim();
+      final validationError = DeeplinkValidator.validateUrl(trimmedUrl);
+      final historyRepository = ref.read(historyRepositoryProvider);
+
+      if (validationError != null) {
+        await _recordOpenHistory(
+          historyRepository,
+          deeplink,
+          isSuccess: false,
+          errorMessage: _invalidHistoryMessage,
+          showHistoryFailureMessage: false,
+        );
+
+        if (!mounted) {
+          return;
+        }
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(validationError)));
+        return;
+      }
+
       final launcher = ref.read(deeplinkLauncherProvider);
       final repository = ref.read(deeplinkRepositoryProvider);
       final launched = await launcher.open(Uri.parse(trimmedUrl));
@@ -120,27 +138,82 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
 
       if (!launched) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No app can open this deeplink.')),
+        await _recordOpenHistory(
+          historyRepository,
+          deeplink,
+          isSuccess: false,
+          errorMessage: _noHandlerMessage,
+          showHistoryFailureMessage: false,
         );
+
+        if (!mounted) {
+          return;
+        }
+
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text(_noHandlerMessage)));
         return;
       }
 
+      await _recordOpenHistory(
+        historyRepository,
+        deeplink,
+        isSuccess: true,
+        showHistoryFailureMessage: true,
+      );
       await _recordSuccessfulOpen(repository, deeplink.id);
     } catch (_) {
+      final historyRepository = ref.read(historyRepositoryProvider);
+      await _recordOpenHistory(
+        historyRepository,
+        deeplink,
+        isSuccess: false,
+        errorMessage: _unableToOpenMessage,
+        showHistoryFailureMessage: false,
+      );
+
       if (!mounted) {
         return;
       }
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Unable to open deeplink.')));
+      ).showSnackBar(const SnackBar(content: Text(_unableToOpenMessage)));
     } finally {
       if (mounted) {
         setState(() {
           _openingDeeplinkIds.remove(deeplink.id);
         });
       }
+    }
+  }
+
+  Future<void> _recordOpenHistory(
+    HistoryRepository repository,
+    Deeplink deeplink, {
+    required bool isSuccess,
+    String? errorMessage,
+    required bool showHistoryFailureMessage,
+  }) async {
+    try {
+      await repository.createHistory(
+        deeplinkId: deeplink.id,
+        name: deeplink.name,
+        url: deeplink.url,
+        isSuccess: isSuccess,
+        errorMessage: errorMessage,
+      );
+    } catch (_) {
+      if (!mounted || !showHistoryFailureMessage) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Deeplink opened, but history could not be saved.'),
+        ),
+      );
     }
   }
 
