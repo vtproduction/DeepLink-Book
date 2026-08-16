@@ -1,9 +1,11 @@
 # Miscellaneous
 *.class
 *.lock
+!deeplink_test_app/pubspec.lock
 *.log
 *.pyc
 *.swp
+.DS_Store
 .buildlog/
 .history
 
