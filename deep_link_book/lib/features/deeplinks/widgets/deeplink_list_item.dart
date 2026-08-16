@@ -9,7 +9,9 @@ class DeeplinkListItem extends StatelessWidget {
     required this.deeplink,
     this.isProcessing = false,
     this.isFavoriteProcessing = false,
+    this.isOpening = false,
     this.onTap,
+    this.onOpen,
     this.onFavoriteTap,
     this.onEdit,
     this.onDuplicate,
@@ -19,7 +21,9 @@ class DeeplinkListItem extends StatelessWidget {
   final Deeplink deeplink;
   final bool isProcessing;
   final bool isFavoriteProcessing;
+  final bool isOpening;
   final VoidCallback? onTap;
+  final VoidCallback? onOpen;
   final VoidCallback? onFavoriteTap;
   final VoidCallback? onEdit;
   final VoidCallback? onDuplicate;
@@ -59,6 +63,23 @@ class DeeplinkListItem extends StatelessWidget {
             _openCountLabel,
             style: textTheme.labelMedium?.copyWith(
               color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Tooltip(
+              message: 'Open ${deeplink.name}',
+              child: OutlinedButton.icon(
+                onPressed: isOpening ? null : onOpen,
+                icon: isOpening
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.open_in_new),
+                label: const Text('Open'),
+              ),
             ),
           ),
         ],

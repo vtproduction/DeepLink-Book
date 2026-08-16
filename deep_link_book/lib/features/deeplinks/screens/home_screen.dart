@@ -4,11 +4,13 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
 import '../../../app/theme/app_spacing.dart';
+import '../../../core/deeplink/deeplink_launcher.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../data/deeplink_repository.dart';
 import '../providers/deeplink_providers.dart';
+import '../validation/deeplink_validator.dart';
 import '../widgets/deeplink_list_item.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -21,6 +23,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   int? _processingDeeplinkId;
   final _processingFavoriteIds = <int>{};
+  final _openingDeeplinkIds = <int>{};
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +63,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 isFavoriteProcessing: _processingFavoriteIds.contains(
                   deeplink.id,
                 ),
+                isOpening: _openingDeeplinkIds.contains(deeplink.id),
                 onTap: () => _openEditScreen(deeplink),
+                onOpen: () => _openDeeplink(deeplink),
                 onFavoriteTap: () => _toggleFavorite(deeplink),
                 onEdit: () => _openEditScreen(deeplink),
                 onDuplicate: () => _duplicateDeeplink(deeplink),
@@ -84,6 +89,92 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       AppRoute.editDeeplink.name,
       pathParameters: {'id': deeplink.id.toString()},
     );
+  }
+
+  Future<void> _openDeeplink(Deeplink deeplink) async {
+    if (_openingDeeplinkIds.contains(deeplink.id)) {
+      return;
+    }
+
+    final trimmedUrl = deeplink.url.trim();
+    final validationError = DeeplinkValidator.validateUrl(trimmedUrl);
+
+    if (validationError != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(validationError)));
+      return;
+    }
+
+    setState(() {
+      _openingDeeplinkIds.add(deeplink.id);
+    });
+
+    try {
+      final launcher = ref.read(deeplinkLauncherProvider);
+      final repository = ref.read(deeplinkRepositoryProvider);
+      final launched = await launcher.open(Uri.parse(trimmedUrl));
+
+      if (!mounted) {
+        return;
+      }
+
+      if (!launched) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('No app can open this deeplink.')),
+        );
+        return;
+      }
+
+      await _recordSuccessfulOpen(repository, deeplink.id);
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Unable to open deeplink.')));
+    } finally {
+      if (mounted) {
+        setState(() {
+          _openingDeeplinkIds.remove(deeplink.id);
+        });
+      }
+    }
+  }
+
+  Future<void> _recordSuccessfulOpen(
+    DeeplinkRepository repository,
+    int deeplinkId,
+  ) async {
+    try {
+      final recorded = await repository.recordDeeplinkOpened(deeplinkId);
+
+      if (!mounted) {
+        return;
+      }
+
+      if (!recorded) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Deeplink opened, but its usage could not be updated.',
+            ),
+          ),
+        );
+      }
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Deeplink opened, but usage could not be saved.'),
+        ),
+      );
+    }
   }
 
   Future<void> _toggleFavorite(Deeplink deeplink) async {

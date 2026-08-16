@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:deep_link_book/app/app.dart';
 import 'package:deep_link_book/app/router.dart';
+import 'package:deep_link_book/core/deeplink/deeplink_launcher.dart';
 import 'package:deep_link_book/core/database/app_database.dart';
 import 'package:deep_link_book/core/database/database_provider.dart';
 import 'package:deep_link_book/features/deeplinks/data/deeplink_repository.dart';
@@ -13,6 +14,307 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  testWidgets('shows an Open action for a deeplink', (
+    WidgetTester tester,
+  ) async {
+    final deeplink = _testDeeplink(
+      id: 1,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+
+    await _pumpHome(tester, deeplinks: [deeplink]);
+
+    expect(find.widgetWithText(OutlinedButton, 'Open'), findsOneWidget);
+  });
+
+  testWidgets('valid deeplink reaches the launcher', (
+    WidgetTester tester,
+  ) async {
+    final deeplink = _testDeeplink(
+      id: 1,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+    final launcher = TestDeeplinkLauncher();
+
+    await _pumpHome(tester, launcher: launcher, deeplinks: [deeplink]);
+    await _tapOpen(tester, 'Transfer Out');
+
+    expect(launcher.openedUris, [Uri.parse('ascendbank-qa://transfer_out')]);
+  });
+
+  testWidgets('invalid deeplink does not launch or update usage', (
+    WidgetTester tester,
+  ) async {
+    final context = _createDatabaseContext();
+    final id = await _insertDeeplink(
+      context.database,
+      name: 'Broken',
+      url: 'transfer_out',
+    );
+    final deeplink = await context.repository.getDeeplinkById(id);
+    final launcher = TestDeeplinkLauncher();
+
+    await _pumpHome(
+      tester,
+      database: context.database,
+      repository: context.repository,
+      launcher: launcher,
+      deeplinks: [deeplink!],
+    );
+    await _tapOpen(tester, 'Broken');
+
+    final unchanged = await context.repository.getDeeplinkById(id);
+
+    expect(launcher.openedUris, isEmpty);
+    expect(find.text('Enter a valid deeplink URL.'), findsOneWidget);
+    expect(unchanged?.openCount, 0);
+    expect(unchanged?.lastOpenedAt, isNull);
+  });
+
+  testWidgets('successful open updates usage metadata', (
+    WidgetTester tester,
+  ) async {
+    final context = _createDatabaseContext();
+    final id = await context.repository.createDeeplink(
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+    final initial = await context.repository.getDeeplinkById(id);
+    final launcher = TestDeeplinkLauncher();
+    final deeplinksStream = StreamController<List<Deeplink>>();
+    addTearDown(deeplinksStream.close);
+
+    await _pumpHome(
+      tester,
+      database: context.database,
+      repository: context.repository,
+      launcher: launcher,
+      deeplinksStream: deeplinksStream.stream,
+    );
+    deeplinksStream.add([initial!]);
+    await tester.pumpAndSettle();
+
+    await _tapOpen(tester, 'Transfer Out');
+
+    final updated = await context.repository.getDeeplinkById(id);
+    expect(updated?.openCount, 1);
+    expect(updated?.lastOpenedAt, isNotNull);
+
+    deeplinksStream.add([updated!]);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Opened 1 time'), findsOneWidget);
+  });
+
+  testWidgets('repeated successful opens increment usage count', (
+    WidgetTester tester,
+  ) async {
+    final context = _createDatabaseContext();
+    final id = await context.repository.createDeeplink(
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+    final deeplink = await context.repository.getDeeplinkById(id);
+    final launcher = TestDeeplinkLauncher();
+
+    await _pumpHome(
+      tester,
+      database: context.database,
+      repository: context.repository,
+      launcher: launcher,
+      deeplinks: [deeplink!],
+    );
+
+    await _tapOpen(tester, 'Transfer Out');
+    await _tapOpen(tester, 'Transfer Out');
+
+    final updated = await context.repository.getDeeplinkById(id);
+
+    expect(updated?.openCount, 2);
+  });
+
+  testWidgets('failed launch does not update usage', (
+    WidgetTester tester,
+  ) async {
+    final context = _createDatabaseContext();
+    final lastOpenedAt = DateTime(2026, 8, 15, 11);
+    final id = await _insertDeeplink(
+      context.database,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+      openCount: 3,
+      lastOpenedAt: lastOpenedAt,
+    );
+    final deeplink = await context.repository.getDeeplinkById(id);
+    final launcher = TestDeeplinkLauncher(result: false);
+
+    await _pumpHome(
+      tester,
+      database: context.database,
+      repository: context.repository,
+      launcher: launcher,
+      deeplinks: [deeplink!],
+    );
+    await _tapOpen(tester, 'Transfer Out');
+
+    final unchanged = await context.repository.getDeeplinkById(id);
+
+    expect(find.text('No app can open this deeplink.'), findsOneWidget);
+    expect(unchanged?.openCount, 3);
+    expect(unchanged?.lastOpenedAt, lastOpenedAt);
+  });
+
+  testWidgets('launcher exception shows an error and does not record usage', (
+    WidgetTester tester,
+  ) async {
+    final deeplink = _testDeeplink(
+      id: 1,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+    final launcher = ThrowingDeeplinkLauncher();
+    final repository = RecordingRepository(deeplink);
+    addTearDown(repository.close);
+
+    await _pumpHome(
+      tester,
+      repository: repository,
+      launcher: launcher,
+      deeplinks: [deeplink],
+    );
+    await _tapOpen(tester, 'Transfer Out');
+
+    expect(find.text('Unable to open deeplink.'), findsOneWidget);
+    expect(repository.recordCallCount, 0);
+    expect(find.byTooltip('Open Transfer Out'), findsOneWidget);
+  });
+
+  testWidgets('usage failure after successful launch is partial success', (
+    WidgetTester tester,
+  ) async {
+    final deeplink = _testDeeplink(
+      id: 1,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+    final launcher = TestDeeplinkLauncher();
+    final repository = RecordingRepository(deeplink, recordResult: false);
+    addTearDown(repository.close);
+
+    await _pumpHome(
+      tester,
+      repository: repository,
+      launcher: launcher,
+      deeplinks: [deeplink],
+    );
+    await _tapOpen(tester, 'Transfer Out');
+
+    expect(launcher.openedUris, hasLength(1));
+    expect(repository.recordCallCount, 1);
+    expect(find.text('Unable to open deeplink.'), findsNothing);
+    expect(
+      find.text('Deeplink opened, but its usage could not be updated.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('usage exception after successful launch is partial success', (
+    WidgetTester tester,
+  ) async {
+    final deeplink = _testDeeplink(
+      id: 1,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+    final launcher = TestDeeplinkLauncher();
+    final repository = RecordingRepository(deeplink, throwsOnRecord: true);
+    addTearDown(repository.close);
+
+    await _pumpHome(
+      tester,
+      repository: repository,
+      launcher: launcher,
+      deeplinks: [deeplink],
+    );
+    await _tapOpen(tester, 'Transfer Out');
+
+    expect(launcher.openedUris, hasLength(1));
+    expect(repository.recordCallCount, 1);
+    expect(find.text('Unable to open deeplink.'), findsNothing);
+    expect(
+      find.text('Deeplink opened, but usage could not be saved.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('prevents repeated Open taps while launching', (
+    WidgetTester tester,
+  ) async {
+    final deeplink = _testDeeplink(
+      id: 1,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+    final launcher = ControlledDeeplinkLauncher();
+
+    await _pumpHome(tester, launcher: launcher, deeplinks: [deeplink]);
+    await _tapOpen(tester, 'Transfer Out');
+    await tester.pump();
+
+    final openButton = tester.widget<OutlinedButton>(
+      find.widgetWithText(OutlinedButton, 'Open'),
+    );
+
+    expect(launcher.openedUris, hasLength(1));
+    expect(openButton.onPressed, isNull);
+
+    launcher.complete(result: false);
+    await tester.pumpAndSettle();
+
+    expect(launcher.openedUris, hasLength(1));
+    expect(find.byTooltip('Open Transfer Out'), findsOneWidget);
+  });
+
+  testWidgets('opening one row does not disable other rows', (
+    WidgetTester tester,
+  ) async {
+    final first = _testDeeplink(
+      id: 1,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+    final second = _testDeeplink(
+      id: 2,
+      name: 'Profile',
+      url: 'ascendbank-qa://profile',
+    );
+    final launcher = ControlledDeeplinkLauncher();
+
+    await _pumpHome(tester, launcher: launcher, deeplinks: [first, second]);
+    await _tapOpen(tester, 'Transfer Out');
+    await tester.pump();
+
+    expect(find.byTooltip('Open Profile'), findsOneWidget);
+  });
+
+  testWidgets('Open tap does not open Edit Deeplink', (
+    WidgetTester tester,
+  ) async {
+    final deeplink = _testDeeplink(
+      id: 1,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+    final launcher = TestDeeplinkLauncher(result: false);
+
+    await _pumpHome(tester, launcher: launcher, deeplinks: [deeplink]);
+    await _tapOpen(tester, 'Transfer Out');
+
+    expect(find.text('Edit Deeplink'), findsNothing);
+  });
+
   testWidgets('shows outlined icon for a non-favorite deeplink', (
     WidgetTester tester,
   ) async {
@@ -672,6 +974,7 @@ Future<void> _pumpHome(
   WidgetTester tester, {
   AppDatabase? database,
   DeeplinkRepository? repository,
+  DeeplinkLauncher? launcher,
   List<Deeplink>? deeplinks,
   Stream<List<Deeplink>>? deeplinksStream,
 }) async {
@@ -681,6 +984,8 @@ Future<void> _pumpHome(
         if (database != null) appDatabaseProvider.overrideWithValue(database),
         if (repository != null)
           deeplinkRepositoryProvider.overrideWithValue(repository),
+        if (launcher != null)
+          deeplinkLauncherProvider.overrideWithValue(launcher),
         if (deeplinks != null)
           deeplinksProvider.overrideWithValue(AsyncValue.data(deeplinks)),
         if (deeplinksStream != null)
@@ -689,6 +994,12 @@ Future<void> _pumpHome(
       child: App(router: createAppRouter()),
     ),
   );
+}
+
+Future<void> _tapOpen(WidgetTester tester, String name) async {
+  await tester.tap(find.byTooltip('Open $name'));
+  await tester.pump();
+  await tester.pump();
 }
 
 Future<void> _openActionsMenu(WidgetTester tester, String name) async {
@@ -931,4 +1242,90 @@ class ControlledFavoriteRepository extends MissingFavoriteRepository {
       _favoriteCompleter.complete(updated);
     }
   }
+}
+
+class TestDeeplinkLauncher extends DeeplinkLauncher {
+  TestDeeplinkLauncher({this.result = true});
+
+  final bool result;
+  final openedUris = <Uri>[];
+
+  @override
+  Future<bool> open(Uri uri) async {
+    openedUris.add(uri);
+    return result;
+  }
+}
+
+class ThrowingDeeplinkLauncher extends DeeplinkLauncher {
+  final openedUris = <Uri>[];
+
+  @override
+  Future<bool> open(Uri uri) {
+    openedUris.add(uri);
+    throw Exception('Launch failed');
+  }
+}
+
+class ControlledDeeplinkLauncher extends DeeplinkLauncher {
+  final openedUris = <Uri>[];
+  final _openCompleter = Completer<bool>();
+
+  @override
+  Future<bool> open(Uri uri) {
+    openedUris.add(uri);
+    return _openCompleter.future;
+  }
+
+  void complete({required bool result}) {
+    if (!_openCompleter.isCompleted) {
+      _openCompleter.complete(result);
+    }
+  }
+}
+
+class RecordingRepository extends DeeplinkRepository {
+  RecordingRepository(
+    Deeplink deeplink, {
+    bool recordResult = true,
+    bool throwsOnRecord = false,
+  }) : this._(
+         deeplink,
+         AppDatabase(NativeDatabase.memory()),
+         recordResult: recordResult,
+         throwsOnRecord: throwsOnRecord,
+       );
+
+  // ignore: use_super_parameters
+  RecordingRepository._(
+    this.deeplink,
+    AppDatabase database, {
+    this.recordResult = true,
+    this.throwsOnRecord = false,
+  }) : _database = database,
+       super(database);
+
+  final Deeplink deeplink;
+  final bool recordResult;
+  final bool throwsOnRecord;
+  final AppDatabase _database;
+  var recordCallCount = 0;
+
+  @override
+  Future<Deeplink?> getDeeplinkById(int id) async {
+    return id == deeplink.id ? deeplink : null;
+  }
+
+  @override
+  Future<bool> recordDeeplinkOpened(int id) {
+    recordCallCount++;
+
+    if (throwsOnRecord) {
+      throw Exception('Record failed');
+    }
+
+    return Future.value(recordResult);
+  }
+
+  Future<void> close() => _database.close();
 }
