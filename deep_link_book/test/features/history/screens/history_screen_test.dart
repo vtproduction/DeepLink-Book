@@ -11,6 +11,7 @@ import 'package:deep_link_book/features/history/screens/history_screen.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -516,6 +517,55 @@ void main() {
     await tester.pump(const Duration(milliseconds: 1));
   });
 
+  testWidgets('copy action exists and copies the History snapshot URL', (
+    WidgetTester tester,
+  ) async {
+    final database = AppDatabase(NativeDatabase.memory());
+    final launcher = TestDeeplinkLauncher();
+    final historyRepository = HistoryRepository(database);
+    final deeplinkRepository = DeeplinkRepository(database);
+    addTearDown(database.close);
+
+    final deeplinkId = await deeplinkRepository.createDeeplink(
+      name: 'Transfer QA',
+      url: 'deeplinktest://transfer?env=qa',
+    );
+    await historyRepository.createHistory(
+      deeplinkId: deeplinkId,
+      name: 'Transfer QA',
+      url: 'deeplinktest://transfer?env=qa',
+      isSuccess: true,
+    );
+    await deeplinkRepository.updateDeeplink(
+      id: deeplinkId,
+      name: 'Transfer UAT',
+      url: 'deeplinktest://transfer?env=uat',
+    );
+
+    final clipboardWrites = captureClipboardWrites();
+    await pumpHistoryScreen(tester, database: database, launcher: launcher);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('History actions'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Copy'), findsOneWidget);
+
+    await tester.tap(find.text('Copy'));
+    await tester.pumpAndSettle();
+
+    final history = await historyRepository.getAllHistory();
+
+    expect(clipboardWrites, ['deeplinktest://transfer?env=qa']);
+    expect(find.text('Deeplink copied.'), findsOneWidget);
+    expect(find.text('Delete history item?'), findsNothing);
+    expect(launcher.openedUris, isEmpty);
+    expect(history, hasLength(1));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump(const Duration(milliseconds: 1));
+  });
+
   testWidgets('confirming delete removes one history item', (
     WidgetTester tester,
   ) async {
@@ -706,6 +756,26 @@ void main() {
     expect(find.text('Transfer'), findsOneWidget);
     expect(find.byTooltip('Clear history'), findsOneWidget);
   });
+}
+
+List<String?> captureClipboardWrites() {
+  final clipboardWrites = <String?>[];
+
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final arguments = call.arguments as Map<Object?, Object?>;
+          clipboardWrites.add(arguments['text'] as String?);
+        }
+
+        return null;
+      });
+  addTearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null);
+  });
+
+  return clipboardWrites;
 }
 
 Future<void> pumpHistoryScreen(

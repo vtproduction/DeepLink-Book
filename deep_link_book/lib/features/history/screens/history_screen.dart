@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 
 import '../../../app/theme/app_spacing.dart';
 import '../../../core/database/app_database.dart';
@@ -84,6 +85,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 isOpening: _openingHistoryIds.contains(historyItem.id),
                 isDeleting: _deletingHistoryIds.contains(historyItem.id),
                 onOpen: () => _reopenHistoryItem(historyItem),
+                onCopy: () => _copyDeeplinkUrl(historyItem.url),
                 onDelete: () => _confirmAndDeleteHistoryItem(historyItem),
               );
             },
@@ -92,6 +94,24 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         },
       ),
     );
+  }
+
+  Future<void> _copyDeeplinkUrl(String url) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: url));
+
+      if (!mounted) {
+        return;
+      }
+
+      _showSnackBar('Deeplink copied.');
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      _showSnackBar('Unable to copy deeplink.');
+    }
   }
 
   Future<void> _reopenHistoryItem(DeeplinkHistory history) async {

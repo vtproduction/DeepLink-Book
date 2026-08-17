@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:flutter/services.dart';
 
 import '../../../app/router.dart';
 import '../../../app/theme/app_spacing.dart';
@@ -29,6 +30,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   int? _processingDeeplinkId;
   final _processingFavoriteIds = <int>{};
   final _openingDeeplinkIds = <int>{};
+  final _searchController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchController
+      ..removeListener(_onSearchChanged)
+      ..dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,28 +72,78 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             );
           }
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            itemCount: deeplinks.length,
-            itemBuilder: (context, index) {
-              final deeplink = deeplinks[index];
+          final filteredDeeplinks = _filterDeeplinks(
+            deeplinks,
+            _searchController.text,
+          );
 
-              return DeeplinkListItem(
-                deeplink: deeplink,
-                isProcessing: _processingDeeplinkId == deeplink.id,
-                isFavoriteProcessing: _processingFavoriteIds.contains(
-                  deeplink.id,
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.md,
+                  AppSpacing.sm,
                 ),
-                isOpening: _openingDeeplinkIds.contains(deeplink.id),
-                onTap: () => _openEditScreen(deeplink),
-                onOpen: () => _openDeeplink(deeplink),
-                onFavoriteTap: () => _toggleFavorite(deeplink),
-                onEdit: () => _openEditScreen(deeplink),
-                onDuplicate: () => _duplicateDeeplink(deeplink),
-                onDelete: () => _confirmAndDeleteDeeplink(deeplink),
-              );
-            },
-            separatorBuilder: (context, index) => const Divider(),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Search deeplinks',
+                    prefixIcon: const Icon(Icons.search),
+                    suffixIcon: _searchController.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Clear search',
+                            onPressed: _searchController.clear,
+                            icon: const Icon(Icons.clear),
+                          ),
+                  ),
+                ),
+              ),
+              if (filteredDeeplinks.isEmpty)
+                const Expanded(
+                  child: Center(
+                    child: AppEmptyState(
+                      icon: Icons.search_off,
+                      title: 'No matching deeplinks',
+                      description: 'Try a different search term.',
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      AppSpacing.sm,
+                      AppSpacing.md,
+                      AppSpacing.md,
+                    ),
+                    itemCount: filteredDeeplinks.length,
+                    itemBuilder: (context, index) {
+                      final deeplink = filteredDeeplinks[index];
+
+                      return DeeplinkListItem(
+                        deeplink: deeplink,
+                        isProcessing: _processingDeeplinkId == deeplink.id,
+                        isFavoriteProcessing: _processingFavoriteIds.contains(
+                          deeplink.id,
+                        ),
+                        isOpening: _openingDeeplinkIds.contains(deeplink.id),
+                        onTap: () => _openEditScreen(deeplink),
+                        onOpen: () => _openDeeplink(deeplink),
+                        onFavoriteTap: () => _toggleFavorite(deeplink),
+                        onEdit: () => _openEditScreen(deeplink),
+                        onCopy: () => _copyDeeplinkUrl(deeplink.url),
+                        onDuplicate: () => _duplicateDeeplink(deeplink),
+                        onDelete: () => _confirmAndDeleteDeeplink(deeplink),
+                      );
+                    },
+                    separatorBuilder: (context, index) => const Divider(),
+                  ),
+                ),
+            ],
           );
         },
       ),
@@ -89,11 +155,53 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
+  void _onSearchChanged() {
+    setState(() {});
+  }
+
+  List<Deeplink> _filterDeeplinks(List<Deeplink> deeplinks, String query) {
+    final normalizedQuery = query.trim().toLowerCase();
+
+    if (normalizedQuery.isEmpty) {
+      return deeplinks;
+    }
+
+    return deeplinks.where((deeplink) {
+      final description = deeplink.description;
+
+      return deeplink.name.toLowerCase().contains(normalizedQuery) ||
+          deeplink.url.toLowerCase().contains(normalizedQuery) ||
+          (description?.toLowerCase().contains(normalizedQuery) ?? false);
+    }).toList();
+  }
+
   void _openEditScreen(Deeplink deeplink) {
     context.pushNamed(
       AppRoute.editDeeplink.name,
       pathParameters: {'id': deeplink.id.toString()},
     );
+  }
+
+  Future<void> _copyDeeplinkUrl(String url) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: url));
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Deeplink copied.')));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Unable to copy deeplink.')));
+    }
   }
 
   Future<void> _openDeeplink(Deeplink deeplink) async {

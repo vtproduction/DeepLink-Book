@@ -12,6 +12,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
@@ -27,6 +28,243 @@ void main() {
     await _pumpHome(tester, deeplinks: [deeplink]);
 
     expect(find.widgetWithText(OutlinedButton, 'Open'), findsOneWidget);
+  });
+
+  testWidgets('shows a search field when deeplinks exist', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(
+          id: 1,
+          name: 'Transfer Out',
+          url: 'ascendbank-qa://transfer_out',
+        ),
+      ],
+    );
+
+    expect(find.widgetWithText(TextField, 'Search deeplinks'), findsOneWidget);
+  });
+
+  testWidgets('empty search shows all deeplinks', (WidgetTester tester) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(
+          id: 1,
+          name: 'Transfer Out',
+          url: 'ascendbank-qa://transfer_out',
+        ),
+        _testDeeplink(id: 2, name: 'Profile', url: 'ascendbank-qa://profile'),
+      ],
+    );
+
+    expect(find.text('Transfer Out'), findsOneWidget);
+    expect(find.text('Profile'), findsOneWidget);
+  });
+
+  testWidgets('searches deeplinks by name case-insensitively', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(
+          id: 1,
+          name: 'Transfer Out',
+          url: 'ascendbank-qa://transfer_out',
+        ),
+        _testDeeplink(id: 2, name: 'Profile', url: 'ascendbank-qa://profile'),
+      ],
+    );
+
+    await _enterSearch(tester, 'TRANSFER');
+
+    expect(find.text('Transfer Out'), findsOneWidget);
+    expect(find.text('Profile'), findsNothing);
+  });
+
+  testWidgets('search ignores leading and trailing whitespace', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(
+          id: 1,
+          name: 'Transfer Out',
+          url: 'ascendbank-qa://transfer_out',
+        ),
+        _testDeeplink(id: 2, name: 'Profile', url: 'ascendbank-qa://profile'),
+      ],
+    );
+
+    await _enterSearch(tester, '   transfer   ');
+
+    expect(find.text('Transfer Out'), findsOneWidget);
+    expect(find.text('Profile'), findsNothing);
+  });
+
+  testWidgets('searches deeplinks by URL', (WidgetTester tester) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(
+          id: 1,
+          name: 'Transfer Out',
+          url: 'ascendbank-qa://transfer_out',
+        ),
+        _testDeeplink(id: 2, name: 'Profile', url: 'ascendbank-qa://profile'),
+      ],
+    );
+
+    await _enterSearch(tester, 'profile');
+
+    expect(find.text('Profile'), findsOneWidget);
+    expect(find.text('Transfer Out'), findsNothing);
+  });
+
+  testWidgets(
+    'searches deeplinks by description and handles null description',
+    (WidgetTester tester) async {
+      await _pumpHome(
+        tester,
+        deeplinks: [
+          _testDeeplink(
+            id: 1,
+            name: 'Payment',
+            url: 'ascendbank-qa://payment',
+            description: 'Open confirmation screen',
+          ),
+          _testDeeplink(
+            id: 2,
+            name: 'Transfer Out',
+            url: 'ascendbank-qa://transfer_out',
+          ),
+        ],
+      );
+
+      await _enterSearch(tester, 'confirmation');
+
+      expect(find.text('Payment'), findsOneWidget);
+      expect(find.text('Transfer Out'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('shows a separate empty state for no search matches', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(
+          id: 1,
+          name: 'Transfer Out',
+          url: 'ascendbank-qa://transfer_out',
+        ),
+      ],
+    );
+
+    await _enterSearch(tester, 'something-that-does-not-exist');
+
+    expect(find.text('No matching deeplinks'), findsOneWidget);
+    expect(find.text('Try a different search term.'), findsOneWidget);
+    expect(find.text('No deeplinks yet'), findsNothing);
+  });
+
+  testWidgets('empty database still shows the normal empty state', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(tester, deeplinks: const []);
+
+    expect(find.text('No deeplinks yet'), findsOneWidget);
+    expect(find.text('No matching deeplinks'), findsNothing);
+  });
+
+  testWidgets('clearing search restores all deeplinks', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(
+          id: 1,
+          name: 'Transfer Out',
+          url: 'ascendbank-qa://transfer_out',
+        ),
+        _testDeeplink(id: 2, name: 'Profile', url: 'ascendbank-qa://profile'),
+      ],
+    );
+
+    await _enterSearch(tester, 'transfer');
+    await tester.tap(find.byTooltip('Clear search'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Transfer Out'), findsOneWidget);
+    expect(find.text('Profile'), findsOneWidget);
+  });
+
+  testWidgets('search is reapplied when the deeplink stream updates', (
+    WidgetTester tester,
+  ) async {
+    final deeplinksStream = StreamController<List<Deeplink>>();
+    addTearDown(deeplinksStream.close);
+
+    await _pumpHome(tester, deeplinksStream: deeplinksStream.stream);
+    deeplinksStream.add([
+      _testDeeplink(
+        id: 1,
+        name: 'Transfer QA',
+        url: 'ascendbank-qa://transfer_qa',
+      ),
+      _testDeeplink(id: 2, name: 'Profile', url: 'ascendbank-qa://profile'),
+    ]);
+    await tester.pumpAndSettle();
+
+    await _enterSearch(tester, 'transfer');
+
+    deeplinksStream.add([
+      _testDeeplink(
+        id: 3,
+        name: 'Transfer UAT',
+        url: 'ascendbank-qa://transfer_uat',
+      ),
+    ]);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Transfer QA'), findsNothing);
+    expect(find.text('Profile'), findsNothing);
+    expect(find.text('Transfer UAT'), findsOneWidget);
+  });
+
+  testWidgets('copy action exists and copies the Home deeplink URL', (
+    WidgetTester tester,
+  ) async {
+    final deeplink = _testDeeplink(
+      id: 1,
+      name: 'Transfer Out',
+      url: 'ascendbank-qa://transfer_out',
+    );
+    final launcher = TestDeeplinkLauncher();
+
+    final clipboardWrites = _captureClipboardWrites();
+    await _pumpHome(tester, launcher: launcher, deeplinks: [deeplink]);
+
+    await _openActionsMenu(tester, 'Transfer Out');
+
+    expect(find.text('Copy'), findsOneWidget);
+
+    await tester.tap(find.text('Copy'));
+    await tester.pumpAndSettle();
+
+    expect(clipboardWrites, ['ascendbank-qa://transfer_out']);
+    expect(find.text('Deeplink copied.'), findsOneWidget);
+    expect(find.text('Edit Deeplink'), findsNothing);
+    expect(find.text('Delete deeplink?'), findsNothing);
+    expect(find.text('Transfer Out'), findsOneWidget);
+    expect(launcher.openedUris, isEmpty);
   });
 
   testWidgets('valid deeplink reaches the launcher', (
@@ -1143,6 +1381,34 @@ Future<void> _tapOpen(WidgetTester tester, String name) async {
   await tester.pump();
 }
 
+Future<void> _enterSearch(WidgetTester tester, String query) async {
+  await tester.enterText(
+    find.widgetWithText(TextField, 'Search deeplinks'),
+    query,
+  );
+  await tester.pumpAndSettle();
+}
+
+List<String?> _captureClipboardWrites() {
+  final clipboardWrites = <String?>[];
+
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final arguments = call.arguments as Map<Object?, Object?>;
+          clipboardWrites.add(arguments['text'] as String?);
+        }
+
+        return null;
+      });
+  addTearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null);
+  });
+
+  return clipboardWrites;
+}
+
 Future<void> _openActionsMenu(WidgetTester tester, String name) async {
   await tester.tap(find.byTooltip('Actions for $name'));
   await tester.pumpAndSettle();
@@ -1171,6 +1437,7 @@ Deeplink _testDeeplink({
   required int id,
   required String name,
   required String url,
+  String? description,
   bool isFavorite = false,
 }) {
   final now = DateTime(2026, 8, 15, 10);
@@ -1179,6 +1446,7 @@ Deeplink _testDeeplink({
     id: id,
     name: name,
     url: url,
+    description: description,
     isFavorite: isFavorite,
     openCount: 0,
     createdAt: now,

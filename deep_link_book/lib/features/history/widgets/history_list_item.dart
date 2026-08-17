@@ -8,6 +8,7 @@ class HistoryListItem extends StatelessWidget {
     super.key,
     required this.history,
     required this.onOpen,
+    required this.onCopy,
     required this.onDelete,
     this.isOpening = false,
     this.isDeleting = false,
@@ -15,6 +16,7 @@ class HistoryListItem extends StatelessWidget {
 
   final DeeplinkHistory history;
   final VoidCallback? onOpen;
+  final VoidCallback? onCopy;
   final VoidCallback? onDelete;
   final bool isOpening;
   final bool isDeleting;
@@ -94,11 +96,17 @@ class HistoryListItem extends StatelessWidget {
                 tooltip: 'History actions',
                 onSelected: (action) {
                   switch (action) {
+                    case _HistoryItemAction.copy:
+                      onCopy?.call();
                     case _HistoryItemAction.delete:
                       onDelete?.call();
                   }
                 },
                 itemBuilder: (context) => const [
+                  PopupMenuItem(
+                    value: _HistoryItemAction.copy,
+                    child: Text('Copy'),
+                  ),
                   PopupMenuItem(
                     value: _HistoryItemAction.delete,
                     child: Text('Delete'),
@@ -139,7 +147,7 @@ class HistoryListItem extends StatelessWidget {
   ];
 }
 
-enum _HistoryItemAction { delete }
+enum _HistoryItemAction { copy, delete }
 
 class _HistoryStatus extends StatelessWidget {
   const _HistoryStatus({required this.isSuccess, required this.color});
