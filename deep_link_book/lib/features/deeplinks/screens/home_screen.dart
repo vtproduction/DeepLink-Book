@@ -31,6 +31,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final _processingFavoriteIds = <int>{};
   final _openingDeeplinkIds = <int>{};
   final _searchController = TextEditingController();
+  var _favoritesOnly = false;
+  var _sortOption = DeeplinkSortOption.recentlyUpdated;
 
   @override
   void initState() {
@@ -72,10 +74,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             );
           }
 
-          final filteredDeeplinks = _filterDeeplinks(
+          final visibleDeeplinks = _buildVisibleDeeplinks(
             deeplinks,
             _searchController.text,
+            favoritesOnly: _favoritesOnly,
+            sortOption: _sortOption,
           );
+          final hasSearchQuery = _searchController.text.trim().isNotEmpty;
 
           return Column(
             children: [
@@ -101,14 +106,80 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   ),
                 ),
               ),
-              if (filteredDeeplinks.isEmpty)
-                const Expanded(
-                  child: Center(
-                    child: AppEmptyState(
-                      icon: Icons.search_off,
-                      title: 'No matching deeplinks',
-                      description: 'Try a different search term.',
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  AppSpacing.md,
+                  0,
+                  AppSpacing.md,
+                  AppSpacing.sm,
+                ),
+                child: Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    FilterChip(
+                      label: const Text('All'),
+                      selected: !_favoritesOnly,
+                      onSelected: (selected) {
+                        if (!selected) {
+                          return;
+                        }
+
+                        setState(() {
+                          _favoritesOnly = false;
+                        });
+                      },
                     ),
+                    FilterChip(
+                      label: const Text('Favorites'),
+                      avatar: const Icon(Icons.star),
+                      selected: _favoritesOnly,
+                      onSelected: (selected) {
+                        setState(() {
+                          _favoritesOnly = selected;
+                        });
+                      },
+                    ),
+                    PopupMenuButton<DeeplinkSortOption>(
+                      tooltip: 'Sort deeplinks',
+                      initialValue: _sortOption,
+                      onSelected: (sortOption) {
+                        setState(() {
+                          _sortOption = sortOption;
+                        });
+                      },
+                      itemBuilder: (context) {
+                        return DeeplinkSortOption.values.map((sortOption) {
+                          return PopupMenuItem(
+                            value: sortOption,
+                            child: Text(sortOption.label),
+                          );
+                        }).toList();
+                      },
+                      child: InputChip(
+                        avatar: const Icon(Icons.sort),
+                        label: Text('Sort: ${_sortOption.label}'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (visibleDeeplinks.isEmpty)
+                Expanded(
+                  child: Center(
+                    child: hasSearchQuery
+                        ? const AppEmptyState(
+                            icon: Icons.search_off,
+                            title: 'No matching deeplinks',
+                            description: 'Try a different search term.',
+                          )
+                        : const AppEmptyState(
+                            icon: Icons.star_border,
+                            title: 'No favorite deeplinks',
+                            description:
+                                'Mark a deeplink as favorite to find it here.',
+                          ),
                   ),
                 )
               else
@@ -120,9 +191,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       AppSpacing.md,
                       AppSpacing.md,
                     ),
-                    itemCount: filteredDeeplinks.length,
+                    itemCount: visibleDeeplinks.length,
                     itemBuilder: (context, index) {
-                      final deeplink = filteredDeeplinks[index];
+                      final deeplink = visibleDeeplinks[index];
 
                       return DeeplinkListItem(
                         deeplink: deeplink,
@@ -159,20 +230,43 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     setState(() {});
   }
 
-  List<Deeplink> _filterDeeplinks(List<Deeplink> deeplinks, String query) {
+  List<Deeplink> _buildVisibleDeeplinks(
+    List<Deeplink> deeplinks,
+    String query, {
+    required bool favoritesOnly,
+    required DeeplinkSortOption sortOption,
+  }) {
     final normalizedQuery = query.trim().toLowerCase();
-
-    if (normalizedQuery.isEmpty) {
-      return deeplinks;
-    }
-
-    return deeplinks.where((deeplink) {
+    final visibleDeeplinks = deeplinks.where((deeplink) {
       final description = deeplink.description;
-
-      return deeplink.name.toLowerCase().contains(normalizedQuery) ||
+      final matchesSearch =
+          normalizedQuery.isEmpty ||
+          deeplink.name.toLowerCase().contains(normalizedQuery) ||
           deeplink.url.toLowerCase().contains(normalizedQuery) ||
           (description?.toLowerCase().contains(normalizedQuery) ?? false);
+      final matchesFavorite = !favoritesOnly || deeplink.isFavorite;
+
+      return matchesSearch && matchesFavorite;
     }).toList();
+
+    visibleDeeplinks.sort((a, b) {
+      switch (sortOption) {
+        case DeeplinkSortOption.recentlyUpdated:
+          return b.updatedAt.compareTo(a.updatedAt);
+        case DeeplinkSortOption.name:
+          return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+        case DeeplinkSortOption.mostOpened:
+          final openCountComparison = b.openCount.compareTo(a.openCount);
+
+          if (openCountComparison != 0) {
+            return openCountComparison;
+          }
+
+          return b.updatedAt.compareTo(a.updatedAt);
+      }
+    });
+
+    return visibleDeeplinks;
   }
 
   void _openEditScreen(Deeplink deeplink) {
@@ -489,4 +583,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       }
     }
   }
+}
+
+enum DeeplinkSortOption {
+  recentlyUpdated('Recently updated'),
+  name('Name'),
+  mostOpened('Most opened');
+
+  const DeeplinkSortOption(this.label);
+
+  final String label;
 }

@@ -267,6 +267,423 @@ void main() {
     expect(launcher.openedUris, isEmpty);
   });
 
+  testWidgets('All filter is selected by default and shows all deeplinks', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(
+          id: 1,
+          name: 'Favorite A',
+          url: 'ascendbank-qa://favorite',
+          isFavorite: true,
+        ),
+        _testDeeplink(id: 2, name: 'Normal B', url: 'ascendbank-qa://normal'),
+      ],
+    );
+
+    expect(find.widgetWithText(FilterChip, 'All'), findsOneWidget);
+    expect(find.widgetWithText(FilterChip, 'Favorites'), findsOneWidget);
+    expect(find.text('Favorite A'), findsOneWidget);
+    expect(find.text('Normal B'), findsOneWidget);
+  });
+
+  testWidgets('Favorites filter shows only favorite deeplinks', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(
+          id: 1,
+          name: 'Favorite A',
+          url: 'ascendbank-qa://favorite',
+          isFavorite: true,
+        ),
+        _testDeeplink(id: 2, name: 'Normal B', url: 'ascendbank-qa://normal'),
+      ],
+    );
+
+    await _selectFavoritesFilter(tester);
+
+    expect(find.text('Favorite A'), findsOneWidget);
+    expect(find.text('Normal B'), findsNothing);
+  });
+
+  testWidgets('switching back to All shows all deeplinks again', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(
+          id: 1,
+          name: 'Favorite A',
+          url: 'ascendbank-qa://favorite',
+          isFavorite: true,
+        ),
+        _testDeeplink(id: 2, name: 'Normal B', url: 'ascendbank-qa://normal'),
+      ],
+    );
+
+    await _selectFavoritesFilter(tester);
+    await tester.tap(find.widgetWithText(FilterChip, 'All'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Favorite A'), findsOneWidget);
+    expect(find.text('Normal B'), findsOneWidget);
+  });
+
+  testWidgets('Favorites filter has a distinct empty state', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(id: 1, name: 'Normal A', url: 'ascendbank-qa://a'),
+        _testDeeplink(id: 2, name: 'Normal B', url: 'ascendbank-qa://b'),
+      ],
+    );
+
+    await _selectFavoritesFilter(tester);
+
+    expect(find.text('No favorite deeplinks'), findsOneWidget);
+    expect(
+      find.text('Mark a deeplink as favorite to find it here.'),
+      findsOneWidget,
+    );
+    expect(find.text('No deeplinks yet'), findsNothing);
+  });
+
+  testWidgets('search no-results state wins over Favorites empty state', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(
+          id: 1,
+          name: 'Profile',
+          url: 'ascendbank-qa://profile',
+          isFavorite: true,
+        ),
+      ],
+    );
+
+    await _enterSearch(tester, 'transfer');
+    await _selectFavoritesFilter(tester);
+
+    expect(find.text('No matching deeplinks'), findsOneWidget);
+    expect(find.text('No favorite deeplinks'), findsNothing);
+  });
+
+  testWidgets('default sort is Recently updated', (WidgetTester tester) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(id: 1, name: 'Transfer', url: 'ascendbank-qa://transfer'),
+      ],
+    );
+
+    expect(find.text('Sort: Recently updated'), findsOneWidget);
+  });
+
+  testWidgets('Name sort orders deeplinks alphabetically', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(id: 1, name: 'Profile', url: 'ascendbank-qa://profile'),
+        _testDeeplink(id: 2, name: 'Accounts', url: 'ascendbank-qa://accounts'),
+        _testDeeplink(id: 3, name: 'Transfer', url: 'ascendbank-qa://transfer'),
+      ],
+    );
+
+    await _selectSortOption(tester, 'Name');
+
+    _expectVisibleOrder(['Accounts', 'Profile', 'Transfer'], tester);
+  });
+
+  testWidgets('Name sort is case-insensitive', (WidgetTester tester) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(id: 1, name: 'transfer', url: 'ascendbank-qa://transfer'),
+        _testDeeplink(id: 2, name: 'Accounts', url: 'ascendbank-qa://accounts'),
+        _testDeeplink(id: 3, name: 'profile', url: 'ascendbank-qa://profile'),
+      ],
+    );
+
+    await _selectSortOption(tester, 'Name');
+
+    _expectVisibleOrder(['Accounts', 'profile', 'transfer'], tester);
+  });
+
+  testWidgets('Most opened sort orders by open count descending', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(id: 1, name: 'A', url: 'ascendbank-qa://a', openCount: 2),
+        _testDeeplink(
+          id: 2,
+          name: 'B',
+          url: 'ascendbank-qa://b',
+          openCount: 10,
+        ),
+        _testDeeplink(id: 3, name: 'C', url: 'ascendbank-qa://c', openCount: 5),
+      ],
+    );
+
+    await _selectSortOption(tester, 'Most opened');
+
+    _expectVisibleOrder(['B', 'C', 'A'], tester);
+  });
+
+  testWidgets('Recently updated sort orders newest first', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(
+          id: 1,
+          name: 'Old',
+          url: 'ascendbank-qa://old',
+          updatedAt: DateTime(2026, 8, 15, 8),
+        ),
+        _testDeeplink(
+          id: 2,
+          name: 'Newest',
+          url: 'ascendbank-qa://newest',
+          updatedAt: DateTime(2026, 8, 15, 12),
+        ),
+        _testDeeplink(
+          id: 3,
+          name: 'Middle',
+          url: 'ascendbank-qa://middle',
+          updatedAt: DateTime(2026, 8, 15, 10),
+        ),
+      ],
+    );
+
+    _expectVisibleOrder(['Newest', 'Middle', 'Old'], tester);
+  });
+
+  testWidgets('search and Favorites filter compose together', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(
+          id: 1,
+          name: 'Transfer QA',
+          url: 'ascendbank-qa://transfer_qa',
+          isFavorite: true,
+        ),
+        _testDeeplink(
+          id: 2,
+          name: 'Transfer UAT',
+          url: 'ascendbank-qa://transfer_uat',
+        ),
+        _testDeeplink(
+          id: 3,
+          name: 'Profile',
+          url: 'ascendbank-qa://profile',
+          isFavorite: true,
+        ),
+      ],
+    );
+
+    await _enterSearch(tester, 'transfer');
+    await _selectFavoritesFilter(tester);
+
+    expect(find.text('Transfer QA'), findsOneWidget);
+    expect(find.text('Transfer UAT'), findsNothing);
+    expect(find.text('Profile'), findsNothing);
+  });
+
+  testWidgets('search and sort compose together', (WidgetTester tester) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(
+          id: 1,
+          name: 'Transfer A',
+          url: 'ascendbank-qa://transfer_a',
+          openCount: 2,
+        ),
+        _testDeeplink(
+          id: 2,
+          name: 'Transfer B',
+          url: 'ascendbank-qa://transfer_b',
+          openCount: 9,
+        ),
+        _testDeeplink(
+          id: 3,
+          name: 'Profile',
+          url: 'ascendbank-qa://profile',
+          openCount: 20,
+        ),
+      ],
+    );
+
+    await _enterSearch(tester, 'transfer');
+    await _selectSortOption(tester, 'Most opened');
+
+    expect(find.text('Profile'), findsNothing);
+    _expectVisibleOrder(['Transfer B', 'Transfer A'], tester);
+  });
+
+  testWidgets('Favorites and Name sort compose together', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(
+          id: 1,
+          name: 'Transfer',
+          url: 'ascendbank-qa://transfer',
+          isFavorite: true,
+        ),
+        _testDeeplink(
+          id: 2,
+          name: 'Accounts',
+          url: 'ascendbank-qa://accounts',
+          isFavorite: true,
+        ),
+        _testDeeplink(id: 3, name: 'Profile', url: 'ascendbank-qa://profile'),
+      ],
+    );
+
+    await _selectFavoritesFilter(tester);
+    await _selectSortOption(tester, 'Name');
+
+    expect(find.text('Profile'), findsNothing);
+    _expectVisibleOrder(['Accounts', 'Transfer'], tester);
+  });
+
+  testWidgets('search, Favorites, and sort compose together', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(
+          id: 1,
+          name: 'Transfer Low',
+          url: 'ascendbank-qa://transfer_low',
+          isFavorite: true,
+          openCount: 1,
+        ),
+        _testDeeplink(
+          id: 2,
+          name: 'Transfer High',
+          url: 'ascendbank-qa://transfer_high',
+          isFavorite: true,
+          openCount: 8,
+        ),
+        _testDeeplink(
+          id: 3,
+          name: 'Transfer Normal',
+          url: 'ascendbank-qa://transfer_normal',
+          openCount: 20,
+        ),
+        _testDeeplink(
+          id: 4,
+          name: 'Profile',
+          url: 'ascendbank-qa://profile',
+          isFavorite: true,
+          openCount: 30,
+        ),
+      ],
+    );
+
+    await _enterSearch(tester, 'transfer');
+    await _selectFavoritesFilter(tester);
+    await _selectSortOption(tester, 'Most opened');
+
+    expect(find.text('Transfer Normal'), findsNothing);
+    expect(find.text('Profile'), findsNothing);
+    _expectVisibleOrder(['Transfer High', 'Transfer Low'], tester);
+  });
+
+  testWidgets(
+    'unfavoriting while filtered hides the item after stream update',
+    (WidgetTester tester) async {
+      final deeplinksStream = StreamController<List<Deeplink>>();
+      addTearDown(deeplinksStream.close);
+      final favorite = _testDeeplink(
+        id: 1,
+        name: 'Favorite Transfer',
+        url: 'ascendbank-qa://transfer',
+        isFavorite: true,
+      );
+
+      await _pumpHome(tester, deeplinksStream: deeplinksStream.stream);
+      deeplinksStream.add([favorite]);
+      await tester.pumpAndSettle();
+      await _selectFavoritesFilter(tester);
+
+      deeplinksStream.add([
+        _testDeeplink(
+          id: 1,
+          name: 'Favorite Transfer',
+          url: 'ascendbank-qa://transfer',
+        ),
+      ]);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Favorite Transfer'), findsNothing);
+      expect(find.text('No favorite deeplinks'), findsOneWidget);
+    },
+  );
+
+  testWidgets('Most opened sort reacts to updated open counts', (
+    WidgetTester tester,
+  ) async {
+    final deeplinksStream = StreamController<List<Deeplink>>();
+    addTearDown(deeplinksStream.close);
+
+    await _pumpHome(tester, deeplinksStream: deeplinksStream.stream);
+    deeplinksStream.add([
+      _testDeeplink(id: 1, name: 'Transfer', url: 'ascendbank-qa://transfer'),
+      _testDeeplink(
+        id: 2,
+        name: 'Profile',
+        url: 'ascendbank-qa://profile',
+        openCount: 3,
+      ),
+    ]);
+    await tester.pumpAndSettle();
+    await _selectSortOption(tester, 'Most opened');
+
+    _expectVisibleOrder(['Profile', 'Transfer'], tester);
+
+    deeplinksStream.add([
+      _testDeeplink(
+        id: 1,
+        name: 'Transfer',
+        url: 'ascendbank-qa://transfer',
+        openCount: 4,
+      ),
+      _testDeeplink(
+        id: 2,
+        name: 'Profile',
+        url: 'ascendbank-qa://profile',
+        openCount: 3,
+      ),
+    ]);
+    await tester.pumpAndSettle();
+
+    _expectVisibleOrder(['Transfer', 'Profile'], tester);
+  });
+
   testWidgets('valid deeplink reaches the launcher', (
     WidgetTester tester,
   ) async {
@@ -702,8 +1119,8 @@ void main() {
 
     await _pumpHome(tester, deeplinks: [deeplink]);
 
-    expect(find.byIcon(Icons.star_border), findsOneWidget);
-    expect(find.byIcon(Icons.star), findsNothing);
+    expect(find.byTooltip('Add Transfer Out to favorites'), findsOneWidget);
+    expect(find.byTooltip('Remove Transfer Out from favorites'), findsNothing);
   });
 
   testWidgets('shows filled icon for a favorite deeplink', (
@@ -718,8 +1135,11 @@ void main() {
 
     await _pumpHome(tester, deeplinks: [deeplink]);
 
-    expect(find.byIcon(Icons.star), findsOneWidget);
-    expect(find.byIcon(Icons.star_border), findsNothing);
+    expect(
+      find.byTooltip('Remove Transfer Out from favorites'),
+      findsOneWidget,
+    );
+    expect(find.byTooltip('Add Transfer Out to favorites'), findsNothing);
   });
 
   testWidgets('toggles favorite from false to true', (
@@ -752,7 +1172,10 @@ void main() {
     deeplinksStream.add([updated!]);
     await tester.pumpAndSettle();
 
-    expect(find.byIcon(Icons.star), findsOneWidget);
+    expect(
+      find.byTooltip('Remove Transfer Out from favorites'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('toggles favorite from true to false', (
@@ -1355,6 +1778,11 @@ Future<void> _pumpHome(
   List<Deeplink>? deeplinks,
   Stream<List<Deeplink>>? deeplinksStream,
 }) async {
+  tester.view.physicalSize = const Size(1080, 1920);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -1387,6 +1815,27 @@ Future<void> _enterSearch(WidgetTester tester, String query) async {
     query,
   );
   await tester.pumpAndSettle();
+}
+
+Future<void> _selectFavoritesFilter(WidgetTester tester) async {
+  await tester.tap(find.widgetWithText(FilterChip, 'Favorites'));
+  await tester.pumpAndSettle();
+}
+
+Future<void> _selectSortOption(WidgetTester tester, String label) async {
+  await tester.tap(find.byTooltip('Sort deeplinks'));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(label).last);
+  await tester.pumpAndSettle();
+}
+
+void _expectVisibleOrder(List<String> names, WidgetTester tester) {
+  for (var index = 0; index < names.length - 1; index++) {
+    final currentTop = tester.getTopLeft(find.text(names[index])).dy;
+    final nextTop = tester.getTopLeft(find.text(names[index + 1])).dy;
+
+    expect(currentTop, lessThan(nextTop));
+  }
 }
 
 List<String?> _captureClipboardWrites() {
@@ -1439,6 +1888,8 @@ Deeplink _testDeeplink({
   required String url,
   String? description,
   bool isFavorite = false,
+  int openCount = 0,
+  DateTime? updatedAt,
 }) {
   final now = DateTime(2026, 8, 15, 10);
 
@@ -1448,9 +1899,9 @@ Deeplink _testDeeplink({
     url: url,
     description: description,
     isFavorite: isFavorite,
-    openCount: 0,
+    openCount: openCount,
     createdAt: now,
-    updatedAt: now,
+    updatedAt: updatedAt ?? now,
   );
 }
 

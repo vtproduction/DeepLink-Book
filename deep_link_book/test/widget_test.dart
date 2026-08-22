@@ -107,7 +107,10 @@ void main() {
       ],
     );
 
-    expect(find.byIcon(Icons.star), findsOneWidget);
+    expect(
+      find.byTooltip('Remove Transfer Out from favorites'),
+      findsOneWidget,
+    );
     expect(find.text('Opened 3 times'), findsOneWidget);
   });
 
