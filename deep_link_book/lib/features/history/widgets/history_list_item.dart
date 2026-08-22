@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_spacing.dart';
 import '../../../core/database/app_database.dart';
+import '../../../core/utils/date_time_formatter.dart';
 
 class HistoryListItem extends StatelessWidget {
   const HistoryListItem({
@@ -72,7 +73,7 @@ class HistoryListItem extends StatelessWidget {
           ],
           const SizedBox(height: AppSpacing.sm),
           Text(
-            _formatOpenedAt(history.openedAt),
+            DateTimeFormatter.dateTimeWithYear(history.openedAt),
             style: textTheme.labelMedium?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
@@ -119,32 +120,6 @@ class HistoryListItem extends StatelessWidget {
       ),
     );
   }
-
-  String _formatOpenedAt(DateTime openedAt) {
-    final local = openedAt.toLocal();
-    final day = local.day.toString().padLeft(2, '0');
-    final month = _monthNames[local.month - 1];
-    final year = local.year;
-    final hour = local.hour.toString().padLeft(2, '0');
-    final minute = local.minute.toString().padLeft(2, '0');
-
-    return '$day $month $year, $hour:$minute';
-  }
-
-  static const _monthNames = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
 }
 
 enum _HistoryItemAction { copy, delete }

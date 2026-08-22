@@ -30,6 +30,53 @@ void main() {
     expect(find.widgetWithText(OutlinedButton, 'Open'), findsOneWidget);
   });
 
+  testWidgets('shows human-readable open count wording', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(id: 1, name: 'Never', url: 'ascendbank-qa://never'),
+        _testDeeplink(
+          id: 2,
+          name: 'Once',
+          url: 'ascendbank-qa://once',
+          openCount: 1,
+        ),
+        _testDeeplink(
+          id: 3,
+          name: 'Twice',
+          url: 'ascendbank-qa://twice',
+          openCount: 2,
+        ),
+      ],
+    );
+
+    expect(find.text('Never opened'), findsOneWidget);
+    expect(find.text('Opened 1 time'), findsOneWidget);
+    expect(find.text('Opened 2 times'), findsOneWidget);
+  });
+
+  testWidgets('shows a readable last opened label when available', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      deeplinks: [
+        _testDeeplink(
+          id: 1,
+          name: 'Transfer Out',
+          url: 'ascendbank-qa://transfer_out',
+          openCount: 3,
+          lastOpenedAt: DateTime(2026, 8, 21, 14, 32),
+        ),
+      ],
+    );
+
+    expect(find.textContaining('Opened 3 times'), findsOneWidget);
+    expect(find.textContaining('Last opened'), findsOneWidget);
+  });
+
   testWidgets('shows a search field when deeplinks exist', (
     WidgetTester tester,
   ) async {
@@ -45,6 +92,32 @@ void main() {
     );
 
     expect(find.widgetWithText(TextField, 'Search deeplinks'), findsOneWidget);
+  });
+
+  testWidgets('Home controls and long URLs render on a narrow width', (
+    WidgetTester tester,
+  ) async {
+    await _pumpHome(
+      tester,
+      surfaceSize: const Size(320, 720),
+      deeplinks: [
+        _testDeeplink(
+          id: 1,
+          name: 'Very Long URL',
+          url:
+              'ascendbank-qa://transfer_out/with/a/very/long/path/that/keeps/going?account=primary&amount=1000&note=this-is-a-long-note',
+          isFavorite: true,
+          openCount: 2,
+          lastOpenedAt: DateTime(2026, 8, 21, 14, 32),
+        ),
+      ],
+    );
+
+    expect(find.widgetWithText(TextField, 'Search deeplinks'), findsOneWidget);
+    expect(find.widgetWithText(FilterChip, 'Favorites'), findsOneWidget);
+    expect(find.byTooltip('Sort deeplinks'), findsOneWidget);
+    expect(find.text('Very Long URL'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('empty search shows all deeplinks', (WidgetTester tester) async {
@@ -775,7 +848,8 @@ void main() {
     deeplinksStream.add([updated!]);
     await tester.pumpAndSettle();
 
-    expect(find.text('Opened 1 time'), findsOneWidget);
+    expect(find.textContaining('Opened 1 time'), findsOneWidget);
+    expect(find.textContaining('Last opened'), findsOneWidget);
   });
 
   testWidgets('repeated successful opens increment usage count', (
@@ -1548,7 +1622,7 @@ void main() {
 
     expect(find.text('Unable to duplicate deeplink.'), findsOneWidget);
     expect(find.text('Transfer Out'), findsOneWidget);
-    expect(find.byTooltip('Actions for Transfer Out'), findsOneWidget);
+    expect(find.byTooltip('More actions for Transfer Out'), findsOneWidget);
   });
 
   testWidgets('prevents repeated duplicate requests while processing', (
@@ -1569,13 +1643,13 @@ void main() {
 
     expect(repository.duplicateCallCount, 1);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(find.byTooltip('Actions for Transfer Out'), findsNothing);
+    expect(find.byTooltip('More actions for Transfer Out'), findsNothing);
 
     repository.completeDuplicate(duplicatedId: null);
     await tester.pumpAndSettle();
 
     expect(repository.duplicateCallCount, 1);
-    expect(find.byTooltip('Actions for Transfer Out'), findsOneWidget);
+    expect(find.byTooltip('More actions for Transfer Out'), findsOneWidget);
   });
 
   testWidgets('shows a confirmation dialog before deleting', (
@@ -1720,7 +1794,7 @@ void main() {
 
     expect(find.text('Unable to delete deeplink.'), findsOneWidget);
     expect(find.text('Transfer Out'), findsOneWidget);
-    expect(find.byTooltip('Actions for Transfer Out'), findsOneWidget);
+    expect(find.byTooltip('More actions for Transfer Out'), findsOneWidget);
   });
 
   testWidgets('prevents duplicate delete requests while deleting', (
@@ -1741,13 +1815,13 @@ void main() {
 
     expect(repository.deleteCallCount, 1);
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
-    expect(find.byTooltip('Actions for Transfer Out'), findsNothing);
+    expect(find.byTooltip('More actions for Transfer Out'), findsNothing);
 
     repository.completeDelete(deleted: false);
     await tester.pumpAndSettle();
 
     expect(repository.deleteCallCount, 1);
-    expect(find.byTooltip('Actions for Transfer Out'), findsOneWidget);
+    expect(find.byTooltip('More actions for Transfer Out'), findsOneWidget);
   });
 
   testWidgets('tapping the row still opens Edit Deeplink', (
@@ -1777,8 +1851,9 @@ Future<void> _pumpHome(
   DeeplinkLauncher? launcher,
   List<Deeplink>? deeplinks,
   Stream<List<Deeplink>>? deeplinksStream,
+  Size surfaceSize = const Size(1080, 1920),
 }) async {
-  tester.view.physicalSize = const Size(1080, 1920);
+  tester.view.physicalSize = surfaceSize;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -1859,7 +1934,7 @@ List<String?> _captureClipboardWrites() {
 }
 
 Future<void> _openActionsMenu(WidgetTester tester, String name) async {
-  await tester.tap(find.byTooltip('Actions for $name'));
+  await tester.tap(find.byTooltip('More actions for $name'));
   await tester.pumpAndSettle();
 }
 
@@ -1889,6 +1964,7 @@ Deeplink _testDeeplink({
   String? description,
   bool isFavorite = false,
   int openCount = 0,
+  DateTime? lastOpenedAt,
   DateTime? updatedAt,
 }) {
   final now = DateTime(2026, 8, 15, 10);
@@ -1900,6 +1976,7 @@ Deeplink _testDeeplink({
     description: description,
     isFavorite: isFavorite,
     openCount: openCount,
+    lastOpenedAt: lastOpenedAt,
     createdAt: now,
     updatedAt: updatedAt ?? now,
   );

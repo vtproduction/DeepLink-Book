@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_spacing.dart';
 import '../../../core/database/app_database.dart';
+import '../../../core/utils/date_time_formatter.dart';
 
 class DeeplinkListItem extends StatelessWidget {
   const DeeplinkListItem({
@@ -62,7 +63,7 @@ class DeeplinkListItem extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            _openCountLabel,
+            _usageMetadataLabel,
             style: textTheme.labelMedium?.copyWith(
               color: colorScheme.onSurfaceVariant,
             ),
@@ -115,7 +116,7 @@ class DeeplinkListItem extends StatelessWidget {
             )
           else
             PopupMenuButton<_DeeplinkListItemAction>(
-              tooltip: 'Actions for ${deeplink.name}',
+              tooltip: 'More actions for ${deeplink.name}',
               onSelected: (action) {
                 switch (action) {
                   case _DeeplinkListItemAction.edit:
@@ -129,22 +130,25 @@ class DeeplinkListItem extends StatelessWidget {
                 }
               },
               itemBuilder: (context) {
-                return const [
-                  PopupMenuItem(
+                return [
+                  const PopupMenuItem(
                     value: _DeeplinkListItemAction.edit,
                     child: Text('Edit'),
                   ),
-                  PopupMenuItem(
+                  const PopupMenuItem(
                     value: _DeeplinkListItemAction.copy,
                     child: Text('Copy'),
                   ),
-                  PopupMenuItem(
+                  const PopupMenuItem(
                     value: _DeeplinkListItemAction.duplicate,
                     child: Text('Duplicate'),
                   ),
                   PopupMenuItem(
                     value: _DeeplinkListItemAction.delete,
-                    child: Text('Delete'),
+                    child: Text(
+                      'Delete',
+                      style: TextStyle(color: colorScheme.error),
+                    ),
                   ),
                 ];
               },
@@ -154,7 +158,22 @@ class DeeplinkListItem extends StatelessWidget {
     );
   }
 
+  String get _usageMetadataLabel {
+    final openCount = _openCountLabel;
+    final lastOpenedAt = deeplink.lastOpenedAt;
+
+    if (lastOpenedAt == null) {
+      return openCount;
+    }
+
+    return '$openCount · Last opened ${DateTimeFormatter.compactDateTime(lastOpenedAt)}';
+  }
+
   String get _openCountLabel {
+    if (deeplink.openCount == 0) {
+      return 'Never opened';
+    }
+
     if (deeplink.openCount == 1) {
       return 'Opened 1 time';
     }

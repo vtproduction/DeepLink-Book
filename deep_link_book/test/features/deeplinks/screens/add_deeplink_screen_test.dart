@@ -259,7 +259,7 @@ Future<void> pumpAppOnAddScreen(
         ),
   );
 
-  await tester.tap(find.byTooltip('Add Deeplink'));
+  await tester.tap(find.byTooltip('Add deeplink'));
   await tester.pumpAndSettle();
 }
 

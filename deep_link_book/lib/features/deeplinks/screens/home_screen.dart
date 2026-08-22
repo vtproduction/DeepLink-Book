@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter/services.dart';
 
 import '../../../app/router.dart';
 import '../../../app/theme/app_spacing.dart';
@@ -56,11 +56,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       appBar: AppBar(title: const Text('Home')),
       body: deeplinks.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => const Center(
+        error: (error, stackTrace) => Center(
           child: AppEmptyState(
             icon: Icons.error_outline,
             title: 'Unable to load deeplinks',
-            description: 'Please try again later.',
+            description: 'Please try again.',
+            action: FilledButton.icon(
+              onPressed: () => ref.invalidate(deeplinksProvider),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry'),
+            ),
           ),
         ),
         data: (deeplinks) {
@@ -93,6 +98,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
                 child: TextField(
                   controller: _searchController,
+                  textInputAction: TextInputAction.search,
                   decoration: InputDecoration(
                     hintText: 'Search deeplinks',
                     prefixIcon: const Icon(Icons.search),
@@ -219,7 +225,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         },
       ),
       floatingActionButton: FloatingActionButton(
-        tooltip: 'Add Deeplink',
+        tooltip: 'Add deeplink',
         onPressed: () => context.pushNamed(AppRoute.addDeeplink.name),
         child: const Icon(Icons.add),
       ),

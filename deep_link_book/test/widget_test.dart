@@ -143,7 +143,8 @@ void main() {
     );
 
     expect(find.text('Unable to load deeplinks'), findsOneWidget);
-    expect(find.text('Please try again later.'), findsOneWidget);
+    expect(find.text('Please try again.'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Retry'), findsOneWidget);
   });
 
   testWidgets('opens Add Deeplink from the Home FAB', (
@@ -151,7 +152,7 @@ void main() {
   ) async {
     await pumpApp(tester, deeplinks: const []);
 
-    await tester.tap(find.byTooltip('Add Deeplink'));
+    await tester.tap(find.byTooltip('Add deeplink'));
     await tester.pumpAndSettle();
 
     expect(find.text('Add Deeplink'), findsOneWidget);
@@ -166,7 +167,7 @@ void main() {
   ) async {
     await pumpApp(tester, deeplinks: const []);
 
-    await tester.tap(find.byTooltip('Add Deeplink'));
+    await tester.tap(find.byTooltip('Add deeplink'));
     await tester.pumpAndSettle();
 
     await tester.pageBack();
