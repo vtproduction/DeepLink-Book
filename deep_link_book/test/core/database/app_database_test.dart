@@ -14,7 +14,7 @@ void main() {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
 
-    expect(database.schemaVersion, 3);
+    expect(database.schemaVersion, 4);
   });
 
   test('can execute a simple SQL query', () async {
@@ -63,30 +63,35 @@ void main() {
     expect(didDispose, isTrue);
   });
 
-  test('fresh database creates the deeplinks table', () async {
+  test('fresh database creates the core tables', () async {
     final database = AppDatabase(NativeDatabase.memory());
     addTearDown(database.close);
 
-    final table = await database
+    final deeplinksTable = await database
         .customSelect(
           "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'deeplinks'",
         )
         .getSingleOrNull();
-
-    expect(table?.read<String>('name'), 'deeplinks');
-  });
-
-  test('fresh database creates the deeplink history table', () async {
-    final database = AppDatabase(NativeDatabase.memory());
-    addTearDown(database.close);
-
-    final table = await database
+    final historiesTable = await database
         .customSelect(
           "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'deeplink_histories'",
         )
         .getSingleOrNull();
+    final projectsTable = await database
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'projects'",
+        )
+        .getSingleOrNull();
+    final environmentsTable = await database
+        .customSelect(
+          "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'environments'",
+        )
+        .getSingleOrNull();
 
-    expect(table?.read<String>('name'), 'deeplink_histories');
+    expect(deeplinksTable?.read<String>('name'), 'deeplinks');
+    expect(historiesTable?.read<String>('name'), 'deeplink_histories');
+    expect(projectsTable?.read<String>('name'), 'projects');
+    expect(environmentsTable?.read<String>('name'), 'environments');
   });
 
   test('inserts a minimal deeplink with default values', () async {
@@ -113,6 +118,8 @@ void main() {
     expect(deeplink.openCount, 0);
     expect(deeplink.description, isNull);
     expect(deeplink.lastOpenedAt, isNull);
+    expect(deeplink.projectId, isNull);
+    expect(deeplink.environmentId, isNull);
     expect(deeplink.createdAt, now);
     expect(deeplink.updatedAt, now);
   });
@@ -171,7 +178,7 @@ void main() {
     expect(firstId, isNot(secondId));
   });
 
-  test('migrates a version 1 database to version 3', () async {
+  test('migrates a version 1 database to version 4', () async {
     final tempDirectory = await Directory.systemTemp.createTemp(
       'deeplink_manager_migration_test_',
     );
@@ -195,7 +202,7 @@ void main() {
         .getSingle();
 
     expect(table?.read<String>('name'), 'deeplinks');
-    expect(version, 3);
+    expect(version, 4);
   });
 
   test('migrates version 2 database while preserving deeplinks', () async {
@@ -244,6 +251,10 @@ void main() {
     addTearDown(database.close);
 
     final deeplink = await database.select(database.deeplinks).getSingle();
+    final project = await database.select(database.projects).getSingle();
+    final environment = await database
+        .select(database.environments)
+        .getSingle();
     final historyTable = await database
         .customSelect(
           "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'deeplink_histories'",
@@ -258,8 +269,13 @@ void main() {
     expect(deeplink.name, 'Transfer QA');
     expect(deeplink.url, 'deeplinktest://transfer?env=qa');
     expect(deeplink.description, 'Existing saved deeplink');
+    expect(deeplink.projectId, project.id);
+    expect(deeplink.environmentId, isNull);
+    expect(project.name, AppDatabase.defaultProjectName);
+    expect(environment.projectId, project.id);
+    expect(environment.name, AppDatabase.defaultEnvironmentName);
     expect(historyTable?.read<String>('name'), 'deeplink_histories');
     expect(history, isEmpty);
-    expect(version, 3);
+    expect(version, 4);
   });
 }

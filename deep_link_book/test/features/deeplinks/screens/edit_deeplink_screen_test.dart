@@ -388,6 +388,8 @@ class CountingUpdateRepository extends DeeplinkRepository {
   @override
   Future<bool> updateDeeplink({
     required int id,
+    int? projectId,
+    Value<int?> environmentId = const Value.absent(),
     required String name,
     required String url,
     String? description,
@@ -405,6 +407,8 @@ class FailingUpdateRepository extends CountingUpdateRepository {
   @override
   Future<bool> updateDeeplink({
     required int id,
+    int? projectId,
+    Value<int?> environmentId = const Value.absent(),
     required String name,
     required String url,
     String? description,
@@ -422,6 +426,8 @@ class ControlledUpdateRepository extends CountingUpdateRepository {
   @override
   Future<bool> updateDeeplink({
     required int id,
+    int? projectId,
+    Value<int?> environmentId = const Value.absent(),
     required String name,
     required String url,
     String? description,

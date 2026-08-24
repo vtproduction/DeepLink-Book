@@ -165,7 +165,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       },
                       child: InputChip(
                         avatar: const Icon(Icons.sort),
-                        label: Text('Sort: ${_sortOption.label}'),
+                        label: Text(_sortOption.label),
                       ),
                     ),
                   ],
@@ -592,7 +592,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 }
 
 enum DeeplinkSortOption {
-  recentlyUpdated('Recently updated'),
+  recentlyUpdated('Recently'),
   name('Name'),
   mostOpened('Most opened');
 

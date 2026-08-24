@@ -29,11 +29,18 @@ void main() {
     expect(deeplink, isNotNull);
     expect(deeplink!.name, 'Transfer Out');
     expect(deeplink.url, 'ascendbank-qa://transfer_out');
+    expect(deeplink.projectId, isNotNull);
+    expect(deeplink.environmentId, isNull);
     expect(deeplink.isFavorite, isFalse);
     expect(deeplink.openCount, 0);
     expect(deeplink.lastOpenedAt, isNull);
     expect(deeplink.createdAt, isNotNull);
     expect(deeplink.updatedAt, isNotNull);
+
+    final project = await database.select(database.projects).getSingle();
+
+    expect(project.id, deeplink.projectId);
+    expect(project.name, AppDatabase.defaultProjectName);
   });
 
   test('persists optional description when creating a deeplink', () async {

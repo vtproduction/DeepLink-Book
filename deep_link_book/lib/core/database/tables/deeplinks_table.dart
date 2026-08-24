@@ -1,7 +1,22 @@
 import 'package:drift/drift.dart';
 
+import 'environments_table.dart';
+import 'projects_table.dart';
+
 class Deeplinks extends Table {
   IntColumn get id => integer().autoIncrement()();
+
+  IntColumn get projectId => integer().nullable().references(
+    Projects,
+    #id,
+    onDelete: KeyAction.restrict,
+  )();
+
+  IntColumn get environmentId => integer().nullable().references(
+    Environments,
+    #id,
+    onDelete: KeyAction.setNull,
+  )();
 
   TextColumn get name => text()();
 

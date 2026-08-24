@@ -3,23 +3,32 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/database/app_database.dart';
 import '../../../core/database/database_provider.dart';
+import '../../projects/data/project_repository.dart';
 
 class DeeplinkRepository {
-  DeeplinkRepository(this._database);
+  DeeplinkRepository(this._database, {ProjectRepository? projectRepository})
+    : _projectRepository = projectRepository ?? ProjectRepository(_database);
 
   final AppDatabase _database;
+  final ProjectRepository _projectRepository;
 
   Future<int> createDeeplink({
+    int? projectId,
+    int? environmentId,
     required String name,
     required String url,
     String? description,
-  }) {
+  }) async {
     final now = DateTime.now();
+    final resolvedProjectId =
+        projectId ?? (await _projectRepository.getOrCreateDefaultProject()).id;
 
     return _database
         .into(_database.deeplinks)
         .insert(
           DeeplinksCompanion.insert(
+            projectId: Value(resolvedProjectId),
+            environmentId: Value(environmentId),
             name: name,
             url: url,
             description: Value(description),
@@ -45,6 +54,8 @@ class DeeplinkRepository {
 
   Future<bool> updateDeeplink({
     required int id,
+    int? projectId,
+    Value<int?> environmentId = const Value.absent(),
     required String name,
     required String url,
     String? description,
@@ -54,6 +65,8 @@ class DeeplinkRepository {
           _database.deeplinks,
         )..where((deeplink) => deeplink.id.equals(id))).write(
           DeeplinksCompanion(
+            projectId: Value.absentIfNull(projectId),
+            environmentId: environmentId,
             name: Value(name),
             url: Value(url),
             description: Value(description),
@@ -80,6 +93,8 @@ class DeeplinkRepository {
     }
 
     return createDeeplink(
+      projectId: original.projectId,
+      environmentId: original.environmentId,
       name: '${original.name} (Copy)',
       url: original.url,
       description: original.description,
@@ -137,5 +152,8 @@ class DeeplinkRepository {
 }
 
 final deeplinkRepositoryProvider = Provider<DeeplinkRepository>((ref) {
-  return DeeplinkRepository(ref.watch(appDatabaseProvider));
+  return DeeplinkRepository(
+    ref.watch(appDatabaseProvider),
+    projectRepository: ref.watch(projectRepositoryProvider),
+  );
 });

@@ -459,7 +459,7 @@ void main() {
       ],
     );
 
-    expect(find.text('Sort: Recently updated'), findsOneWidget);
+    expect(find.byTooltip('Sort deeplinks'), findsOneWidget);
   });
 
   testWidgets('Name sort orders deeplinks alphabetically', (

@@ -277,6 +277,8 @@ class ControlledDeeplinkRepository extends DeeplinkRepository {
 
   @override
   Future<int> createDeeplink({
+    int? projectId,
+    int? environmentId,
     required String name,
     required String url,
     String? description,
@@ -306,6 +308,8 @@ class FailingDeeplinkRepository extends DeeplinkRepository {
 
   @override
   Future<int> createDeeplink({
+    int? projectId,
+    int? environmentId,
     required String name,
     required String url,
     String? description,
