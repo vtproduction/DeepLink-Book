@@ -21,29 +21,35 @@ class AppEmptyState extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Padding(
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 48, color: colorScheme.primary),
-          const SizedBox(height: AppSpacing.md),
-          Text(title, style: textTheme.titleLarge, textAlign: TextAlign.center),
-          if (description != null) ...[
-            const SizedBox(height: AppSpacing.sm),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 48, color: colorScheme.primary),
+            const SizedBox(height: AppSpacing.md),
             Text(
-              description!,
-              style: textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
+              title,
+              style: textTheme.titleLarge,
               textAlign: TextAlign.center,
             ),
+            if (description != null) ...[
+              const SizedBox(height: AppSpacing.sm),
+              Text(
+                description!,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+            if (action != null) ...[
+              const SizedBox(height: AppSpacing.lg),
+              action!,
+            ],
           ],
-          if (action != null) ...[
-            const SizedBox(height: AppSpacing.lg),
-            action!,
-          ],
-        ],
+        ),
       ),
     );
   }

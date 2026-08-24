@@ -6,6 +6,8 @@ import 'package:deep_link_book/core/database/app_database.dart';
 import 'package:deep_link_book/core/database/database_provider.dart';
 import 'package:deep_link_book/features/deeplinks/data/deeplink_repository.dart';
 import 'package:deep_link_book/features/deeplinks/providers/deeplink_providers.dart';
+import 'package:deep_link_book/features/environments/providers/environment_providers.dart';
+import 'package:deep_link_book/features/projects/providers/project_providers.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
@@ -308,6 +310,13 @@ Future<void> _pumpAppWithRepository(
           deeplinksProvider.overrideWithValue(AsyncValue.data(deeplinks)),
         if (deeplinksStream != null)
           deeplinksProvider.overrideWith((ref) => deeplinksStream),
+        projectsProvider.overrideWithValue(AsyncValue.data([_testProject()])),
+        environmentsForCurrentProjectProvider.overrideWithValue(
+          const AsyncValue.data([]),
+        ),
+        environmentsForProjectProvider(
+          1,
+        ).overrideWithValue(const AsyncValue.data([])),
       ],
       child: App(router: createAppRouter(initialLocation: initialLocation)),
     ),
@@ -344,6 +353,17 @@ Deeplink _testDeeplink({
     description: description,
     isFavorite: false,
     openCount: 0,
+    createdAt: now,
+    updatedAt: now,
+  );
+}
+
+Project _testProject() {
+  final now = DateTime(2026, 8, 15, 10);
+
+  return Project(
+    id: 1,
+    name: AppDatabase.defaultProjectName,
     createdAt: now,
     updatedAt: now,
   );

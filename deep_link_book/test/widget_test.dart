@@ -5,7 +5,9 @@ import 'package:deep_link_book/core/database/app_database.dart';
 import 'package:deep_link_book/core/widgets/app_confirm_dialog.dart';
 import 'package:deep_link_book/core/widgets/app_empty_state.dart';
 import 'package:deep_link_book/features/deeplinks/providers/deeplink_providers.dart';
+import 'package:deep_link_book/features/environments/providers/environment_providers.dart';
 import 'package:deep_link_book/features/history/providers/history_providers.dart';
+import 'package:deep_link_book/features/projects/providers/project_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -22,7 +24,7 @@ void main() {
 
     expect(find.text('No deeplinks yet'), findsOneWidget);
     expect(
-      find.text('Create your first deeplink to get started.'),
+      find.text('Create a deeplink for this project or environment.'),
       findsOneWidget,
     );
   });
@@ -273,6 +275,11 @@ Future<void> pumpApp(
   AsyncValue<List<Deeplink>>? deeplinksValue,
   AsyncValue<List<DeeplinkHistory>>? historyValue,
 }) async {
+  tester.view.physicalSize = const Size(1080, 1920);
+  tester.view.devicePixelRatio = 1;
+  addTearDown(tester.view.resetPhysicalSize);
+  addTearDown(tester.view.resetDevicePixelRatio);
+
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
@@ -282,9 +289,29 @@ Future<void> pumpApp(
         historyProvider.overrideWithValue(
           historyValue ?? const AsyncValue.data([]),
         ),
+        projectsProvider.overrideWithValue(
+          AsyncValue.data([testProject(id: 1)]),
+        ),
+        environmentsForCurrentProjectProvider.overrideWithValue(
+          const AsyncValue.data([]),
+        ),
+        environmentsForProjectProvider(
+          1,
+        ).overrideWithValue(const AsyncValue.data([])),
       ],
       child: App(router: createAppRouter()),
     ),
+  );
+}
+
+Project testProject({required int id}) {
+  final now = DateTime(2026, 8, 13, 10);
+
+  return Project(
+    id: id,
+    name: AppDatabase.defaultProjectName,
+    createdAt: now,
+    updatedAt: now,
   );
 }
 
@@ -299,6 +326,7 @@ Deeplink testDeeplink({
 
   return Deeplink(
     id: id,
+    projectId: 1,
     name: name,
     url: url,
     isFavorite: isFavorite,

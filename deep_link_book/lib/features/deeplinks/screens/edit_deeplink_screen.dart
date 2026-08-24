@@ -1,3 +1,4 @@
+import 'package:drift/drift.dart' show Value;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,7 +8,10 @@ import '../../../core/database/app_database.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../data/deeplink_repository.dart';
 import '../providers/deeplink_providers.dart';
+import '../widgets/deeplink_organization_fields.dart';
 import '../widgets/deeplink_form.dart';
+import '../../environments/providers/environment_providers.dart';
+import '../../projects/providers/project_providers.dart';
 
 class EditDeeplinkScreen extends ConsumerWidget {
   const EditDeeplinkScreen({super.key, required this.deeplinkId});
@@ -75,6 +79,8 @@ class _EditDeeplinkFormContentState
   late final TextEditingController _descriptionController;
 
   var _isSaving = false;
+  late int? _selectedProjectId;
+  late int? _selectedEnvironmentId;
 
   @override
   void initState() {
@@ -84,6 +90,8 @@ class _EditDeeplinkFormContentState
     _descriptionController = TextEditingController(
       text: widget.deeplink.description ?? '',
     );
+    _selectedProjectId = widget.deeplink.projectId;
+    _selectedEnvironmentId = widget.deeplink.environmentId;
   }
 
   @override
@@ -96,6 +104,14 @@ class _EditDeeplinkFormContentState
 
   @override
   Widget build(BuildContext context) {
+    final projects = ref.watch(projectsProvider);
+    final environments = _selectedProjectId == null
+        ? const AsyncValue<List<Environment>>.data([])
+        : ref.watch(environmentsForProjectProvider(_selectedProjectId!));
+
+    _syncProjectSelection(projects);
+    _syncEnvironmentSelection(environments);
+
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Deeplink')),
       body: SafeArea(
@@ -109,6 +125,24 @@ class _EditDeeplinkFormContentState
             isSaving: _isSaving,
             onSubmit: _updateDeeplink,
             submitLabel: 'Save',
+            organizationFields: DeeplinkOrganizationFields(
+              projects: projects,
+              environments: environments,
+              selectedProjectId: _selectedProjectId,
+              selectedEnvironmentId: _selectedEnvironmentId,
+              enabled: !_isSaving,
+              onProjectChanged: (projectId) {
+                setState(() {
+                  _selectedProjectId = projectId;
+                  _selectedEnvironmentId = null;
+                });
+              },
+              onEnvironmentChanged: (environmentId) {
+                setState(() {
+                  _selectedEnvironmentId = environmentId;
+                });
+              },
+            ),
           ),
         ),
       ),
@@ -129,12 +163,22 @@ class _EditDeeplinkFormContentState
     final name = _nameController.text.trim();
     final url = _urlController.text.trim();
     final description = _descriptionController.text.trim();
+    final projectId = _selectedProjectId;
+
+    if (projectId == null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Select a project.')));
+      return;
+    }
 
     try {
       final wasUpdated = await ref
           .read(deeplinkRepositoryProvider)
           .updateDeeplink(
             id: widget.deeplink.id,
+            projectId: projectId,
+            environmentId: Value(_selectedEnvironmentId),
             name: name,
             url: url,
             description: description.isEmpty ? null : description,
@@ -173,6 +217,63 @@ class _EditDeeplinkFormContentState
         const SnackBar(content: Text('Unable to update deeplink.')),
       );
     }
+  }
+
+  void _syncProjectSelection(AsyncValue<List<Project>> projects) {
+    if (_selectedProjectId != null) {
+      return;
+    }
+
+    projects.whenData((projects) {
+      if (projects.isEmpty) {
+        return;
+      }
+
+      final defaultProjects = projects.where(
+        (project) => project.name == AppDatabase.defaultProjectName,
+      );
+      final nextProject = defaultProjects.isNotEmpty
+          ? defaultProjects.first
+          : projects.first;
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _selectedProjectId != null) {
+          return;
+        }
+
+        setState(() {
+          _selectedProjectId = nextProject.id;
+        });
+      });
+    });
+  }
+
+  void _syncEnvironmentSelection(AsyncValue<List<Environment>> environments) {
+    final selectedEnvironmentId = _selectedEnvironmentId;
+
+    if (selectedEnvironmentId == null) {
+      return;
+    }
+
+    environments.whenData((environments) {
+      final isValid = environments.any(
+        (environment) => environment.id == selectedEnvironmentId,
+      );
+
+      if (isValid) {
+        return;
+      }
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || _selectedEnvironmentId != selectedEnvironmentId) {
+          return;
+        }
+
+        setState(() {
+          _selectedEnvironmentId = null;
+        });
+      });
+    });
   }
 }
 

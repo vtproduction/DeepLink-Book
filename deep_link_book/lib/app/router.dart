@@ -4,13 +4,17 @@ import 'widgets/app_shell.dart';
 import '../features/deeplinks/screens/add_deeplink_screen.dart';
 import '../features/deeplinks/screens/edit_deeplink_screen.dart';
 import '../features/deeplinks/screens/home_screen.dart';
+import '../features/environments/screens/environment_list_screen.dart';
 import '../features/history/screens/history_screen.dart';
+import '../features/projects/screens/project_list_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
 
 enum AppRoute {
   home(name: 'home', path: '/'),
   addDeeplink(name: 'add-deeplink', path: '/deeplinks/new'),
   editDeeplink(name: 'edit-deeplink', path: '/deeplinks/:id/edit'),
+  projects(name: 'projects', path: '/projects'),
+  environments(name: 'environments', path: '/projects/:projectId/environments'),
   history(name: 'history', path: '/history'),
   settings(name: 'settings', path: '/settings');
 
@@ -58,6 +62,22 @@ GoRouter createAppRouter({String? initialLocation}) {
           final deeplinkId = int.tryParse(state.pathParameters['id'] ?? '');
 
           return EditDeeplinkScreen(deeplinkId: deeplinkId);
+        },
+      ),
+      GoRoute(
+        path: AppRoute.projects.path,
+        name: AppRoute.projects.name,
+        builder: (context, state) => const ProjectListScreen(),
+      ),
+      GoRoute(
+        path: AppRoute.environments.path,
+        name: AppRoute.environments.name,
+        builder: (context, state) {
+          final projectId = int.tryParse(
+            state.pathParameters['projectId'] ?? '',
+          );
+
+          return EnvironmentListScreen(projectId: projectId);
         },
       ),
     ],

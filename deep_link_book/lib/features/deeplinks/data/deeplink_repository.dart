@@ -23,6 +23,11 @@ class DeeplinkRepository {
     final resolvedProjectId =
         projectId ?? (await _projectRepository.getOrCreateDefaultProject()).id;
 
+    await _verifyEnvironmentBelongsToProject(
+      projectId: resolvedProjectId,
+      environmentId: environmentId,
+    );
+
     return _database
         .into(_database.deeplinks)
         .insert(
@@ -52,6 +57,20 @@ class DeeplinkRepository {
     return _orderedDeeplinksQuery().watch();
   }
 
+  Stream<List<Deeplink>> watchDeeplinks({
+    required int projectId,
+    int? environmentId,
+  }) {
+    final query = _orderedDeeplinksQuery()
+      ..where((deeplink) => deeplink.projectId.equals(projectId));
+
+    if (environmentId != null) {
+      query.where((deeplink) => deeplink.environmentId.equals(environmentId));
+    }
+
+    return query.watch();
+  }
+
   Future<bool> updateDeeplink({
     required int id,
     int? projectId,
@@ -60,6 +79,27 @@ class DeeplinkRepository {
     required String url,
     String? description,
   }) async {
+    if (projectId != null || environmentId.present) {
+      final existing = await getDeeplinkById(id);
+
+      if (existing == null) {
+        return false;
+      }
+
+      final resolvedProjectId = projectId ?? existing.projectId;
+
+      if (resolvedProjectId == null) {
+        throw StateError('A deeplink must belong to a project.');
+      }
+
+      await _verifyEnvironmentBelongsToProject(
+        projectId: resolvedProjectId,
+        environmentId: environmentId.present
+            ? environmentId.value
+            : existing.environmentId,
+      );
+    }
+
     final updatedRows =
         await (_database.update(
           _database.deeplinks,
@@ -75,6 +115,27 @@ class DeeplinkRepository {
         );
 
     return updatedRows > 0;
+  }
+
+  Future<void> _verifyEnvironmentBelongsToProject({
+    required int projectId,
+    required int? environmentId,
+  }) async {
+    if (environmentId == null) {
+      return;
+    }
+
+    final environment =
+        await (_database.select(_database.environments)
+              ..where((environment) => environment.id.equals(environmentId))
+              ..where((environment) => environment.projectId.equals(projectId)))
+            .getSingleOrNull();
+
+    if (environment == null) {
+      throw ArgumentError(
+        'The selected environment does not belong to the selected project.',
+      );
+    }
   }
 
   Future<bool> deleteDeeplink(int id) async {

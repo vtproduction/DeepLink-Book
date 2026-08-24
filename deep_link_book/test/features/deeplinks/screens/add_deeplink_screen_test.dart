@@ -6,6 +6,8 @@ import 'package:deep_link_book/core/database/app_database.dart';
 import 'package:deep_link_book/core/database/database_provider.dart';
 import 'package:deep_link_book/features/deeplinks/data/deeplink_repository.dart';
 import 'package:deep_link_book/features/deeplinks/providers/deeplink_providers.dart';
+import 'package:deep_link_book/features/environments/providers/environment_providers.dart';
+import 'package:deep_link_book/features/projects/providers/project_providers.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -242,22 +244,21 @@ Future<void> pumpAppOnAddScreen(
   WidgetTester tester, {
   Widget Function(Widget child)? wrap,
 }) async {
-  await tester.pumpWidget(
-    wrap?.call(
-          ProviderScope(
-            overrides: [
-              deeplinksProvider.overrideWithValue(const AsyncValue.data([])),
-            ],
-            child: App(router: createAppRouter()),
-          ),
-        ) ??
-        ProviderScope(
-          overrides: [
-            deeplinksProvider.overrideWithValue(const AsyncValue.data([])),
-          ],
-          child: App(router: createAppRouter()),
-        ),
+  final app = ProviderScope(
+    overrides: [
+      deeplinksProvider.overrideWithValue(const AsyncValue.data([])),
+      projectsProvider.overrideWithValue(AsyncValue.data([_testProject()])),
+      environmentsForCurrentProjectProvider.overrideWithValue(
+        const AsyncValue.data([]),
+      ),
+      environmentsForProjectProvider(
+        1,
+      ).overrideWithValue(const AsyncValue.data([])),
+    ],
+    child: App(router: createAppRouter()),
   );
+
+  await tester.pumpWidget(wrap?.call(app) ?? app);
 
   await tester.tap(find.byTooltip('Add deeplink'));
   await tester.pumpAndSettle();
@@ -294,6 +295,17 @@ class ControlledDeeplinkRepository extends DeeplinkRepository {
   }
 
   Future<void> close() => _database.close();
+}
+
+Project _testProject() {
+  final now = DateTime(2026, 8, 15, 10);
+
+  return Project(
+    id: 1,
+    name: AppDatabase.defaultProjectName,
+    createdAt: now,
+    updatedAt: now,
+  );
 }
 
 class FailingDeeplinkRepository extends DeeplinkRepository {

@@ -13,6 +13,7 @@ class DeeplinkForm extends StatelessWidget {
     required this.isSaving,
     required this.onSubmit,
     required this.submitLabel,
+    this.organizationFields,
   });
 
   final GlobalKey<FormState> formKey;
@@ -22,6 +23,7 @@ class DeeplinkForm extends StatelessWidget {
   final bool isSaving;
   final VoidCallback onSubmit;
   final String submitLabel;
+  final Widget? organizationFields;
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +32,7 @@ class DeeplinkForm extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          ?organizationFields,
           TextFormField(
             controller: nameController,
             decoration: const InputDecoration(
