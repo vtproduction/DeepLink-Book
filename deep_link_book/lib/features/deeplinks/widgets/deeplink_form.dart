@@ -91,7 +91,7 @@ class _DeeplinkFormState extends State<DeeplinkForm> {
     _rawCannotSyncToBuilder = false;
   }
 
-  void _handleBuilderUrlChanged(String url) {
+  void _handleBuilderChanged(String url, ParsedDeeplink? parsedDeeplink) {
     if (widget.urlController.text != url) {
       try {
         _isUpdatingRawProgrammatically = true;
@@ -102,7 +102,7 @@ class _DeeplinkFormState extends State<DeeplinkForm> {
     }
 
     setState(() {
-      _lastValidParsedDeeplink = DeeplinkParser.tryParse(url);
+      _lastValidParsedDeeplink = parsedDeeplink;
       _rawCannotSyncToBuilder = false;
     });
   }
@@ -155,7 +155,7 @@ class _DeeplinkFormState extends State<DeeplinkForm> {
               parsedDeeplink: _lastValidParsedDeeplink,
               parsedDeeplinkVersion: _builderSyncVersion,
               rawCannotSyncToBuilder: _rawCannotSyncToBuilder,
-              onUrlChanged: _handleBuilderUrlChanged,
+              onBuilderChanged: _handleBuilderChanged,
               enabled: !widget.isSaving,
               environmentScheme: widget.environmentScheme,
             ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_spacing.dart';
@@ -12,7 +13,7 @@ class DeeplinkBuilderEditor extends StatefulWidget {
     required this.parsedDeeplink,
     required this.parsedDeeplinkVersion,
     required this.rawCannotSyncToBuilder,
-    required this.onUrlChanged,
+    required this.onBuilderChanged,
     required this.enabled,
     this.environmentScheme,
   });
@@ -20,7 +21,8 @@ class DeeplinkBuilderEditor extends StatefulWidget {
   final ParsedDeeplink? parsedDeeplink;
   final int parsedDeeplinkVersion;
   final bool rawCannotSyncToBuilder;
-  final ValueChanged<String> onUrlChanged;
+  final void Function(String url, ParsedDeeplink? parsedDeeplink)
+  onBuilderChanged;
   final bool enabled;
   final String? environmentScheme;
 
@@ -161,6 +163,7 @@ class _DeeplinkBuilderEditorState extends State<DeeplinkBuilderEditor> {
                 parameter: _parameters[index],
                 enabled: widget.enabled,
                 onDelete: () => _deleteParameter(index),
+                onChanged: _handleBuilderChanged,
               ),
               if (index < _parameters.length - 1)
                 const SizedBox(height: AppSpacing.sm),
@@ -244,13 +247,14 @@ class _DeeplinkBuilderEditorState extends State<DeeplinkBuilderEditor> {
       return;
     }
 
-    final nextPreview = _updatePreview();
-    widget.onUrlChanged(nextPreview);
+    final parsed = _buildParsedDeeplink();
+    final nextPreview = _updatePreview(parsed: parsed);
+    widget.onBuilderChanged(nextPreview, parsed);
   }
 
-  String _updatePreview({bool notify = true}) {
-    final parsed = _buildParsedDeeplink();
-    final nextPreview = parsed == null ? '' : _tryBuildPreview(parsed);
+  String _updatePreview({ParsedDeeplink? parsed, bool notify = true}) {
+    final deeplink = parsed ?? _buildParsedDeeplink();
+    final nextPreview = deeplink == null ? '' : _tryBuildPreview(deeplink);
 
     if (mounted && notify) {
       setState(() {
@@ -282,6 +286,8 @@ class _DeeplinkBuilderEditorState extends State<DeeplinkBuilderEditor> {
             (parameter) => DeeplinkQueryParameter(
               key: parameter.keyController.text.trim(),
               value: parameter.valueController.text,
+              enabled: parameter.enabled,
+              type: parameter.type,
             ),
           )
           .toList(),
@@ -290,7 +296,13 @@ class _DeeplinkBuilderEditorState extends State<DeeplinkBuilderEditor> {
 
   String _tryBuildPreview(ParsedDeeplink parsed) {
     try {
-      return DeeplinkParser.build(parsed);
+      final enabledDeeplink = parsed.copyWith(
+        queryParameters: parsed.queryParameters
+            .where((parameter) => parameter.enabled)
+            .toList(),
+      );
+
+      return DeeplinkParser.build(enabledDeeplink);
     } catch (_) {
       return '';
     }
@@ -319,6 +331,8 @@ class _DeeplinkBuilderEditorState extends State<DeeplinkBuilderEditor> {
           (parameter) => _QueryParameterControllers(
             keyText: parameter.key,
             valueText: parameter.value,
+            enabled: parameter.enabled,
+            type: parameter.type,
           )..addListener(_handleBuilderChanged),
         ),
       );
@@ -330,54 +344,246 @@ class _QueryParameterRow extends StatelessWidget {
     required this.parameter,
     required this.enabled,
     required this.onDelete,
+    required this.onChanged,
   });
 
   final _QueryParameterControllers parameter;
   final bool enabled;
   final VoidCallback onDelete;
+  final VoidCallback onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: TextFormField(
-            controller: parameter.keyController,
-            decoration: const InputDecoration(labelText: 'Key'),
-            textInputAction: TextInputAction.next,
-            autocorrect: false,
-            enabled: enabled,
-          ),
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: parameter.enabled
+            ? colorScheme.surface
+            : colorScheme.surfaceContainerHighest,
+        border: Border.all(
+          color: parameter.enabled
+              ? colorScheme.outlineVariant
+              : colorScheme.outlineVariant.withValues(alpha: 0.7),
         ),
-        const SizedBox(width: AppSpacing.sm),
-        Expanded(
-          child: TextFormField(
-            controller: parameter.valueController,
-            decoration: const InputDecoration(labelText: 'Value'),
-            textInputAction: TextInputAction.next,
-            autocorrect: false,
-            enabled: enabled,
-          ),
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.sm),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xs),
+                  child: Tooltip(
+                    message: parameter.enabled
+                        ? 'Included in generated URL'
+                        : 'Excluded from generated URL',
+                    child: Checkbox(
+                      value: parameter.enabled,
+                      onChanged: enabled
+                          ? (value) {
+                              parameter.enabled = value ?? true;
+                              onChanged();
+                            }
+                          : null,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: TextFormField(
+                    controller: parameter.keyController,
+                    decoration: const InputDecoration(
+                      hintText: 'Key',
+                      isDense: true,
+                    ),
+                    textInputAction: TextInputAction.next,
+                    autocorrect: false,
+                    enabled: enabled,
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                IconButton(
+                  tooltip: 'Delete parameter',
+                  onPressed: enabled ? onDelete : null,
+                  icon: const Icon(Icons.close),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            Padding(
+              padding: const EdgeInsets.only(left: 48),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: _ParameterValueInput(
+                      parameter: parameter,
+                      enabled: enabled,
+                      onChanged: onChanged,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  SizedBox(
+                    width: 128,
+                    child: DropdownButtonFormField<DeeplinkParameterType>(
+                      initialValue: parameter.type,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        hintText: 'Type',
+                        isDense: true,
+                      ),
+                      items: DeeplinkParameterType.values.map((type) {
+                        return DropdownMenuItem(
+                          value: type,
+                          child: Text(type.label),
+                        );
+                      }).toList(),
+                      onChanged: enabled
+                          ? (type) {
+                              if (type == null) {
+                                return;
+                              }
+
+                              parameter.setType(type);
+                              onChanged();
+                            }
+                          : null,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        const SizedBox(width: AppSpacing.xs),
-        IconButton(
-          tooltip: 'Delete parameter',
-          onPressed: enabled ? onDelete : null,
-          icon: const Icon(Icons.close),
-        ),
-      ],
+      ),
     );
   }
 }
 
+class _ParameterValueInput extends StatelessWidget {
+  const _ParameterValueInput({
+    required this.parameter,
+    required this.enabled,
+    required this.onChanged,
+  });
+
+  final _QueryParameterControllers parameter;
+  final bool enabled;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    if (parameter.type == DeeplinkParameterType.boolean) {
+      return DropdownButtonFormField<String>(
+        initialValue: parameter.normalizedBooleanValue,
+        isExpanded: true,
+        decoration: const InputDecoration(hintText: 'Value', isDense: true),
+        items: const [
+          DropdownMenuItem(value: 'true', child: Text('true')),
+          DropdownMenuItem(value: 'false', child: Text('false')),
+        ],
+        onChanged: enabled
+            ? (value) {
+                if (value == null) {
+                  return;
+                }
+
+                parameter.valueController.text = value;
+                onChanged();
+              }
+            : null,
+      );
+    }
+
+    return TextFormField(
+      controller: parameter.valueController,
+      decoration: const InputDecoration(hintText: 'Value', isDense: true),
+      keyboardType: parameter.type == DeeplinkParameterType.number
+          ? const TextInputType.numberWithOptions(decimal: true, signed: true)
+          : TextInputType.text,
+      inputFormatters: parameter.type == DeeplinkParameterType.number
+          ? const [_NumberTextInputFormatter()]
+          : null,
+      textInputAction: TextInputAction.next,
+      autocorrect: false,
+      enabled: enabled,
+    );
+  }
+}
+
+class _NumberTextInputFormatter extends TextInputFormatter {
+  const _NumberTextInputFormatter();
+
+  static final _partialNumberPattern = RegExp(r'^-?\d*\.?\d*$');
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (_partialNumberPattern.hasMatch(newValue.text)) {
+      return newValue;
+    }
+
+    return oldValue;
+  }
+}
+
+extension on _QueryParameterControllers {
+  String get normalizedBooleanValue {
+    if (valueController.text == 'false') {
+      return 'false';
+    }
+
+    return 'true';
+  }
+
+  void setType(DeeplinkParameterType nextType) {
+    type = nextType;
+
+    switch (nextType) {
+      case DeeplinkParameterType.boolean:
+        valueController.text = normalizedBooleanValue;
+        return;
+      case DeeplinkParameterType.number:
+        if (!_NumberTextInputFormatter._partialNumberPattern.hasMatch(
+          valueController.text,
+        )) {
+          valueController.clear();
+        }
+        return;
+      case DeeplinkParameterType.string:
+      case DeeplinkParameterType.json:
+        return;
+    }
+  }
+}
+
 class _QueryParameterControllers {
-  _QueryParameterControllers({String keyText = '', String valueText = ''})
-    : keyController = TextEditingController(text: keyText),
-      valueController = TextEditingController(text: valueText);
+  _QueryParameterControllers({
+    String keyText = '',
+    String valueText = '',
+    this.enabled = true,
+    this.type = DeeplinkParameterType.string,
+  }) : keyController = TextEditingController(text: keyText),
+       valueController = TextEditingController(text: valueText) {
+    if (type == DeeplinkParameterType.boolean) {
+      valueController.text = normalizedBooleanValue;
+    } else if (type == DeeplinkParameterType.number &&
+        !_NumberTextInputFormatter._partialNumberPattern.hasMatch(valueText)) {
+      valueController.clear();
+    }
+  }
 
   final TextEditingController keyController;
   final TextEditingController valueController;
+  bool enabled;
+  DeeplinkParameterType type;
 
   bool get isEmpty =>
       keyController.text.trim().isEmpty && valueController.text.isEmpty;
