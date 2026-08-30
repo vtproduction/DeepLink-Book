@@ -20,10 +20,6 @@ class DeeplinkForm extends StatefulWidget {
     required this.submitLabel,
     this.organizationFields,
     this.environmentScheme,
-    this.baseFieldsEnabled = true,
-    this.parsedDeeplinkOverride,
-    this.parsedDeeplinkOverrideVersion = 0,
-    this.onParsedDeeplinkChanged,
   });
 
   final GlobalKey<FormState> formKey;
@@ -35,10 +31,6 @@ class DeeplinkForm extends StatefulWidget {
   final String submitLabel;
   final Widget? organizationFields;
   final String? environmentScheme;
-  final bool baseFieldsEnabled;
-  final ParsedDeeplink? parsedDeeplinkOverride;
-  final int parsedDeeplinkOverrideVersion;
-  final ValueChanged<ParsedDeeplink?>? onParsedDeeplinkChanged;
 
   @override
   State<DeeplinkForm> createState() => _DeeplinkFormState();
@@ -66,15 +58,6 @@ class _DeeplinkFormState extends State<DeeplinkForm> {
       oldWidget.urlController.removeListener(_handleRawUrlChanged);
       _syncBuilderFromRawUrl();
       widget.urlController.addListener(_handleRawUrlChanged);
-    }
-
-    if (widget.parsedDeeplinkOverride != null &&
-        widget.parsedDeeplinkOverrideVersion !=
-            oldWidget.parsedDeeplinkOverrideVersion) {
-      _lastValidParsedDeeplink = widget.parsedDeeplinkOverride;
-      _builderSyncVersion++;
-      _rawCannotSyncToBuilder = false;
-      widget.onParsedDeeplinkChanged?.call(_lastValidParsedDeeplink);
     }
   }
 
@@ -104,7 +87,6 @@ class _DeeplinkFormState extends State<DeeplinkForm> {
     if (_lastValidParsedDeeplink != parsed) {
       _lastValidParsedDeeplink = parsed;
       _builderSyncVersion++;
-      widget.onParsedDeeplinkChanged?.call(parsed);
     }
     _rawCannotSyncToBuilder = false;
   }
@@ -123,7 +105,6 @@ class _DeeplinkFormState extends State<DeeplinkForm> {
       _lastValidParsedDeeplink = parsedDeeplink;
       _rawCannotSyncToBuilder = false;
     });
-    widget.onParsedDeeplinkChanged?.call(parsedDeeplink);
   }
 
   @override
@@ -142,7 +123,7 @@ class _DeeplinkFormState extends State<DeeplinkForm> {
             ),
             textInputAction: TextInputAction.next,
             validator: DeeplinkValidator.validateName,
-            enabled: !widget.isSaving && widget.baseFieldsEnabled,
+            enabled: !widget.isSaving,
           ),
           const SizedBox(height: AppSpacing.md),
           SegmentedButton<_DeeplinkEditorMode>(
@@ -187,7 +168,7 @@ class _DeeplinkFormState extends State<DeeplinkForm> {
             keyboardType: TextInputType.multiline,
             textInputAction: TextInputAction.newline,
             maxLines: 3,
-            enabled: !widget.isSaving && widget.baseFieldsEnabled,
+            enabled: !widget.isSaving,
           ),
           const SizedBox(height: AppSpacing.lg),
           Align(

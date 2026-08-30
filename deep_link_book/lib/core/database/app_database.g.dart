@@ -1883,412 +1883,6 @@ class DeeplinkHistoriesCompanion extends UpdateCompanion<DeeplinkHistory> {
   }
 }
 
-class $DeeplinkVariantsTable extends DeeplinkVariants
-    with TableInfo<$DeeplinkVariantsTable, DeeplinkVariant> {
-  @override
-  final GeneratedDatabase attachedDatabase;
-  final String? _alias;
-  $DeeplinkVariantsTable(this.attachedDatabase, [this._alias]);
-  static const VerificationMeta _idMeta = const VerificationMeta('id');
-  @override
-  late final GeneratedColumn<int> id = GeneratedColumn<int>(
-    'id',
-    aliasedName,
-    false,
-    hasAutoIncrement: true,
-    type: DriftSqlType.int,
-    requiredDuringInsert: false,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'PRIMARY KEY AUTOINCREMENT',
-    ),
-  );
-  static const VerificationMeta _deeplinkIdMeta = const VerificationMeta(
-    'deeplinkId',
-  );
-  @override
-  late final GeneratedColumn<int> deeplinkId = GeneratedColumn<int>(
-    'deeplink_id',
-    aliasedName,
-    false,
-    type: DriftSqlType.int,
-    requiredDuringInsert: true,
-    defaultConstraints: GeneratedColumn.constraintIsAlways(
-      'REFERENCES deeplinks (id) ON DELETE CASCADE',
-    ),
-  );
-  static const VerificationMeta _nameMeta = const VerificationMeta('name');
-  @override
-  late final GeneratedColumn<String> name = GeneratedColumn<String>(
-    'name',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _overridesJsonMeta = const VerificationMeta(
-    'overridesJson',
-  );
-  @override
-  late final GeneratedColumn<String> overridesJson = GeneratedColumn<String>(
-    'overrides_json',
-    aliasedName,
-    false,
-    type: DriftSqlType.string,
-    requiredDuringInsert: false,
-    defaultValue: const Constant('{}'),
-  );
-  static const VerificationMeta _createdAtMeta = const VerificationMeta(
-    'createdAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
-    'created_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
-    'updatedAt',
-  );
-  @override
-  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
-    'updated_at',
-    aliasedName,
-    false,
-    type: DriftSqlType.dateTime,
-    requiredDuringInsert: true,
-  );
-  @override
-  List<GeneratedColumn> get $columns => [
-    id,
-    deeplinkId,
-    name,
-    overridesJson,
-    createdAt,
-    updatedAt,
-  ];
-  @override
-  String get aliasedName => _alias ?? actualTableName;
-  @override
-  String get actualTableName => $name;
-  static const String $name = 'deeplink_variants';
-  @override
-  VerificationContext validateIntegrity(
-    Insertable<DeeplinkVariant> instance, {
-    bool isInserting = false,
-  }) {
-    final context = VerificationContext();
-    final data = instance.toColumns(true);
-    if (data.containsKey('id')) {
-      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
-    }
-    if (data.containsKey('deeplink_id')) {
-      context.handle(
-        _deeplinkIdMeta,
-        deeplinkId.isAcceptableOrUnknown(data['deeplink_id']!, _deeplinkIdMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_deeplinkIdMeta);
-    }
-    if (data.containsKey('name')) {
-      context.handle(
-        _nameMeta,
-        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_nameMeta);
-    }
-    if (data.containsKey('overrides_json')) {
-      context.handle(
-        _overridesJsonMeta,
-        overridesJson.isAcceptableOrUnknown(
-          data['overrides_json']!,
-          _overridesJsonMeta,
-        ),
-      );
-    }
-    if (data.containsKey('created_at')) {
-      context.handle(
-        _createdAtMeta,
-        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_createdAtMeta);
-    }
-    if (data.containsKey('updated_at')) {
-      context.handle(
-        _updatedAtMeta,
-        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
-      );
-    } else if (isInserting) {
-      context.missing(_updatedAtMeta);
-    }
-    return context;
-  }
-
-  @override
-  Set<GeneratedColumn> get $primaryKey => {id};
-  @override
-  DeeplinkVariant map(Map<String, dynamic> data, {String? tablePrefix}) {
-    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
-    return DeeplinkVariant(
-      id: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}id'],
-      )!,
-      deeplinkId: attachedDatabase.typeMapping.read(
-        DriftSqlType.int,
-        data['${effectivePrefix}deeplink_id'],
-      )!,
-      name: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}name'],
-      )!,
-      overridesJson: attachedDatabase.typeMapping.read(
-        DriftSqlType.string,
-        data['${effectivePrefix}overrides_json'],
-      )!,
-      createdAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}created_at'],
-      )!,
-      updatedAt: attachedDatabase.typeMapping.read(
-        DriftSqlType.dateTime,
-        data['${effectivePrefix}updated_at'],
-      )!,
-    );
-  }
-
-  @override
-  $DeeplinkVariantsTable createAlias(String alias) {
-    return $DeeplinkVariantsTable(attachedDatabase, alias);
-  }
-}
-
-class DeeplinkVariant extends DataClass implements Insertable<DeeplinkVariant> {
-  final int id;
-  final int deeplinkId;
-  final String name;
-  final String overridesJson;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  const DeeplinkVariant({
-    required this.id,
-    required this.deeplinkId,
-    required this.name,
-    required this.overridesJson,
-    required this.createdAt,
-    required this.updatedAt,
-  });
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    map['id'] = Variable<int>(id);
-    map['deeplink_id'] = Variable<int>(deeplinkId);
-    map['name'] = Variable<String>(name);
-    map['overrides_json'] = Variable<String>(overridesJson);
-    map['created_at'] = Variable<DateTime>(createdAt);
-    map['updated_at'] = Variable<DateTime>(updatedAt);
-    return map;
-  }
-
-  DeeplinkVariantsCompanion toCompanion(bool nullToAbsent) {
-    return DeeplinkVariantsCompanion(
-      id: Value(id),
-      deeplinkId: Value(deeplinkId),
-      name: Value(name),
-      overridesJson: Value(overridesJson),
-      createdAt: Value(createdAt),
-      updatedAt: Value(updatedAt),
-    );
-  }
-
-  factory DeeplinkVariant.fromJson(
-    Map<String, dynamic> json, {
-    ValueSerializer? serializer,
-  }) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return DeeplinkVariant(
-      id: serializer.fromJson<int>(json['id']),
-      deeplinkId: serializer.fromJson<int>(json['deeplinkId']),
-      name: serializer.fromJson<String>(json['name']),
-      overridesJson: serializer.fromJson<String>(json['overridesJson']),
-      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
-      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
-    );
-  }
-  @override
-  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
-    serializer ??= driftRuntimeOptions.defaultSerializer;
-    return <String, dynamic>{
-      'id': serializer.toJson<int>(id),
-      'deeplinkId': serializer.toJson<int>(deeplinkId),
-      'name': serializer.toJson<String>(name),
-      'overridesJson': serializer.toJson<String>(overridesJson),
-      'createdAt': serializer.toJson<DateTime>(createdAt),
-      'updatedAt': serializer.toJson<DateTime>(updatedAt),
-    };
-  }
-
-  DeeplinkVariant copyWith({
-    int? id,
-    int? deeplinkId,
-    String? name,
-    String? overridesJson,
-    DateTime? createdAt,
-    DateTime? updatedAt,
-  }) => DeeplinkVariant(
-    id: id ?? this.id,
-    deeplinkId: deeplinkId ?? this.deeplinkId,
-    name: name ?? this.name,
-    overridesJson: overridesJson ?? this.overridesJson,
-    createdAt: createdAt ?? this.createdAt,
-    updatedAt: updatedAt ?? this.updatedAt,
-  );
-  DeeplinkVariant copyWithCompanion(DeeplinkVariantsCompanion data) {
-    return DeeplinkVariant(
-      id: data.id.present ? data.id.value : this.id,
-      deeplinkId: data.deeplinkId.present
-          ? data.deeplinkId.value
-          : this.deeplinkId,
-      name: data.name.present ? data.name.value : this.name,
-      overridesJson: data.overridesJson.present
-          ? data.overridesJson.value
-          : this.overridesJson,
-      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
-      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
-    );
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('DeeplinkVariant(')
-          ..write('id: $id, ')
-          ..write('deeplinkId: $deeplinkId, ')
-          ..write('name: $name, ')
-          ..write('overridesJson: $overridesJson, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
-          ..write(')'))
-        .toString();
-  }
-
-  @override
-  int get hashCode =>
-      Object.hash(id, deeplinkId, name, overridesJson, createdAt, updatedAt);
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      (other is DeeplinkVariant &&
-          other.id == this.id &&
-          other.deeplinkId == this.deeplinkId &&
-          other.name == this.name &&
-          other.overridesJson == this.overridesJson &&
-          other.createdAt == this.createdAt &&
-          other.updatedAt == this.updatedAt);
-}
-
-class DeeplinkVariantsCompanion extends UpdateCompanion<DeeplinkVariant> {
-  final Value<int> id;
-  final Value<int> deeplinkId;
-  final Value<String> name;
-  final Value<String> overridesJson;
-  final Value<DateTime> createdAt;
-  final Value<DateTime> updatedAt;
-  const DeeplinkVariantsCompanion({
-    this.id = const Value.absent(),
-    this.deeplinkId = const Value.absent(),
-    this.name = const Value.absent(),
-    this.overridesJson = const Value.absent(),
-    this.createdAt = const Value.absent(),
-    this.updatedAt = const Value.absent(),
-  });
-  DeeplinkVariantsCompanion.insert({
-    this.id = const Value.absent(),
-    required int deeplinkId,
-    required String name,
-    this.overridesJson = const Value.absent(),
-    required DateTime createdAt,
-    required DateTime updatedAt,
-  }) : deeplinkId = Value(deeplinkId),
-       name = Value(name),
-       createdAt = Value(createdAt),
-       updatedAt = Value(updatedAt);
-  static Insertable<DeeplinkVariant> custom({
-    Expression<int>? id,
-    Expression<int>? deeplinkId,
-    Expression<String>? name,
-    Expression<String>? overridesJson,
-    Expression<DateTime>? createdAt,
-    Expression<DateTime>? updatedAt,
-  }) {
-    return RawValuesInsertable({
-      if (id != null) 'id': id,
-      if (deeplinkId != null) 'deeplink_id': deeplinkId,
-      if (name != null) 'name': name,
-      if (overridesJson != null) 'overrides_json': overridesJson,
-      if (createdAt != null) 'created_at': createdAt,
-      if (updatedAt != null) 'updated_at': updatedAt,
-    });
-  }
-
-  DeeplinkVariantsCompanion copyWith({
-    Value<int>? id,
-    Value<int>? deeplinkId,
-    Value<String>? name,
-    Value<String>? overridesJson,
-    Value<DateTime>? createdAt,
-    Value<DateTime>? updatedAt,
-  }) {
-    return DeeplinkVariantsCompanion(
-      id: id ?? this.id,
-      deeplinkId: deeplinkId ?? this.deeplinkId,
-      name: name ?? this.name,
-      overridesJson: overridesJson ?? this.overridesJson,
-      createdAt: createdAt ?? this.createdAt,
-      updatedAt: updatedAt ?? this.updatedAt,
-    );
-  }
-
-  @override
-  Map<String, Expression> toColumns(bool nullToAbsent) {
-    final map = <String, Expression>{};
-    if (id.present) {
-      map['id'] = Variable<int>(id.value);
-    }
-    if (deeplinkId.present) {
-      map['deeplink_id'] = Variable<int>(deeplinkId.value);
-    }
-    if (name.present) {
-      map['name'] = Variable<String>(name.value);
-    }
-    if (overridesJson.present) {
-      map['overrides_json'] = Variable<String>(overridesJson.value);
-    }
-    if (createdAt.present) {
-      map['created_at'] = Variable<DateTime>(createdAt.value);
-    }
-    if (updatedAt.present) {
-      map['updated_at'] = Variable<DateTime>(updatedAt.value);
-    }
-    return map;
-  }
-
-  @override
-  String toString() {
-    return (StringBuffer('DeeplinkVariantsCompanion(')
-          ..write('id: $id, ')
-          ..write('deeplinkId: $deeplinkId, ')
-          ..write('name: $name, ')
-          ..write('overridesJson: $overridesJson, ')
-          ..write('createdAt: $createdAt, ')
-          ..write('updatedAt: $updatedAt')
-          ..write(')'))
-        .toString();
-  }
-}
-
 abstract class _$AppDatabase extends GeneratedDatabase {
   _$AppDatabase(QueryExecutor e) : super(e);
   $AppDatabaseManager get managers => $AppDatabaseManager(this);
@@ -2297,9 +1891,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
   late final $DeeplinksTable deeplinks = $DeeplinksTable(this);
   late final $DeeplinkHistoriesTable deeplinkHistories =
       $DeeplinkHistoriesTable(this);
-  late final $DeeplinkVariantsTable deeplinkVariants = $DeeplinkVariantsTable(
-    this,
-  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -2309,7 +1900,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     environments,
     deeplinks,
     deeplinkHistories,
-    deeplinkVariants,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -2319,13 +1909,6 @@ abstract class _$AppDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('deeplinks', kind: UpdateKind.update)],
-    ),
-    WritePropagation(
-      on: TableUpdateQuery.onTableName(
-        'deeplinks',
-        limitUpdateKind: UpdateKind.delete,
-      ),
-      result: [TableUpdate('deeplink_variants', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -3209,26 +2792,6 @@ final class $$DeeplinksTableReferences
       manager.$state.copyWith(prefetchedData: [item]),
     );
   }
-
-  static MultiTypedResultKey<$DeeplinkVariantsTable, List<DeeplinkVariant>>
-  _deeplinkVariantsRefsTable(_$AppDatabase db) => MultiTypedResultKey.fromTable(
-    db.deeplinkVariants,
-    aliasName: 'deeplinks__id__deeplink_variants__deeplink_id',
-  );
-
-  $$DeeplinkVariantsTableProcessedTableManager get deeplinkVariantsRefs {
-    final manager = $$DeeplinkVariantsTableTableManager(
-      $_db,
-      $_db.deeplinkVariants,
-    ).filter((f) => f.deeplinkId.id.sqlEquals($_itemColumn<int>('id')!));
-
-    final cache = $_typedResult.readTableOrNull(
-      _deeplinkVariantsRefsTable($_db),
-    );
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: cache),
-    );
-  }
 }
 
 class $$DeeplinksTableFilterComposer
@@ -3329,31 +2892,6 @@ class $$DeeplinksTableFilterComposer
           ),
     );
     return composer;
-  }
-
-  Expression<bool> deeplinkVariantsRefs(
-    Expression<bool> Function($$DeeplinkVariantsTableFilterComposer f) f,
-  ) {
-    final $$DeeplinkVariantsTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.deeplinkVariants,
-      getReferencedColumn: (t) => t.deeplinkId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$DeeplinkVariantsTableFilterComposer(
-            $db: $db,
-            $table: $db.deeplinkVariants,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
   }
 }
 
@@ -3545,31 +3083,6 @@ class $$DeeplinksTableAnnotationComposer
     );
     return composer;
   }
-
-  Expression<T> deeplinkVariantsRefs<T extends Object>(
-    Expression<T> Function($$DeeplinkVariantsTableAnnotationComposer a) f,
-  ) {
-    final $$DeeplinkVariantsTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.id,
-      referencedTable: $db.deeplinkVariants,
-      getReferencedColumn: (t) => t.deeplinkId,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$DeeplinkVariantsTableAnnotationComposer(
-            $db: $db,
-            $table: $db.deeplinkVariants,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return f(composer);
-  }
 }
 
 class $$DeeplinksTableTableManager
@@ -3585,11 +3098,7 @@ class $$DeeplinksTableTableManager
           $$DeeplinksTableUpdateCompanionBuilder,
           (Deeplink, $$DeeplinksTableReferences),
           Deeplink,
-          PrefetchHooks Function({
-            bool projectId,
-            bool environmentId,
-            bool deeplinkVariantsRefs,
-          })
+          PrefetchHooks Function({bool projectId, bool environmentId})
         > {
   $$DeeplinksTableTableManager(_$AppDatabase db, $DeeplinksTable table)
     : super(
@@ -3662,89 +3171,60 @@ class $$DeeplinksTableTableManager
                 ),
               )
               .toList(),
-          prefetchHooksCallback:
-              ({
-                projectId = false,
-                environmentId = false,
-                deeplinkVariantsRefs = false,
-              }) {
-                return PrefetchHooks(
-                  db: db,
-                  explicitlyWatchedTables: [
-                    if (deeplinkVariantsRefs) db.deeplinkVariants,
-                  ],
-                  addJoins:
-                      <
-                        T extends TableManagerState<
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic,
-                          dynamic
-                        >
-                      >(state) {
-                        if (projectId) {
-                          state =
-                              state.withJoin(
-                                    currentTable: table,
-                                    currentColumn: table.projectId,
-                                    referencedTable: $$DeeplinksTableReferences
-                                        ._projectIdTable(db),
-                                    referencedColumn: $$DeeplinksTableReferences
-                                        ._projectIdTable(db)
-                                        .id,
-                                  )
-                                  as T;
-                        }
-                        if (environmentId) {
-                          state =
-                              state.withJoin(
-                                    currentTable: table,
-                                    currentColumn: table.environmentId,
-                                    referencedTable: $$DeeplinksTableReferences
-                                        ._environmentIdTable(db),
-                                    referencedColumn: $$DeeplinksTableReferences
-                                        ._environmentIdTable(db)
-                                        .id,
-                                  )
-                                  as T;
-                        }
+          prefetchHooksCallback: ({projectId = false, environmentId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (projectId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.projectId,
+                                referencedTable: $$DeeplinksTableReferences
+                                    ._projectIdTable(db),
+                                referencedColumn: $$DeeplinksTableReferences
+                                    ._projectIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
+                    if (environmentId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.environmentId,
+                                referencedTable: $$DeeplinksTableReferences
+                                    ._environmentIdTable(db),
+                                referencedColumn: $$DeeplinksTableReferences
+                                    ._environmentIdTable(db)
+                                    .id,
+                              )
+                              as T;
+                    }
 
-                        return state;
-                      },
-                  getPrefetchedDataCallback: (items) async {
-                    return [
-                      if (deeplinkVariantsRefs)
-                        await $_getPrefetchedData<
-                          Deeplink,
-                          $DeeplinksTable,
-                          DeeplinkVariant
-                        >(
-                          currentTable: table,
-                          referencedTable: $$DeeplinksTableReferences
-                              ._deeplinkVariantsRefsTable(db),
-                          managerFromTypedResult: (p0) =>
-                              $$DeeplinksTableReferences(
-                                db,
-                                table,
-                                p0,
-                              ).deeplinkVariantsRefs,
-                          referencedItemsForCurrentItem:
-                              (item, referencedItems) => referencedItems.where(
-                                (e) => e.deeplinkId == item.id,
-                              ),
-                          typedResults: items,
-                        ),
-                    ];
+                    return state;
                   },
-                );
+              getPrefetchedDataCallback: (items) async {
+                return [];
               },
+            );
+          },
         ),
       );
 }
@@ -3761,11 +3241,7 @@ typedef $$DeeplinksTableProcessedTableManager =
       $$DeeplinksTableUpdateCompanionBuilder,
       (Deeplink, $$DeeplinksTableReferences),
       Deeplink,
-      PrefetchHooks Function({
-        bool projectId,
-        bool environmentId,
-        bool deeplinkVariantsRefs,
-      })
+      PrefetchHooks Function({bool projectId, bool environmentId})
     >;
 typedef $$DeeplinkHistoriesTableCreateCompanionBuilder =
     DeeplinkHistoriesCompanion Function({
@@ -4012,347 +3488,6 @@ typedef $$DeeplinkHistoriesTableProcessedTableManager =
       DeeplinkHistory,
       PrefetchHooks Function()
     >;
-typedef $$DeeplinkVariantsTableCreateCompanionBuilder =
-    DeeplinkVariantsCompanion Function({
-      Value<int> id,
-      required int deeplinkId,
-      required String name,
-      Value<String> overridesJson,
-      required DateTime createdAt,
-      required DateTime updatedAt,
-    });
-typedef $$DeeplinkVariantsTableUpdateCompanionBuilder =
-    DeeplinkVariantsCompanion Function({
-      Value<int> id,
-      Value<int> deeplinkId,
-      Value<String> name,
-      Value<String> overridesJson,
-      Value<DateTime> createdAt,
-      Value<DateTime> updatedAt,
-    });
-
-final class $$DeeplinkVariantsTableReferences
-    extends
-        BaseReferences<_$AppDatabase, $DeeplinkVariantsTable, DeeplinkVariant> {
-  $$DeeplinkVariantsTableReferences(
-    super.$_db,
-    super.$_table,
-    super.$_typedResult,
-  );
-
-  static $DeeplinksTable _deeplinkIdTable(_$AppDatabase db) =>
-      db.deeplinks.createAlias('deeplink_variants__deeplink_id__deeplinks__id');
-
-  $$DeeplinksTableProcessedTableManager get deeplinkId {
-    final $_column = $_itemColumn<int>('deeplink_id')!;
-
-    final manager = $$DeeplinksTableTableManager(
-      $_db,
-      $_db.deeplinks,
-    ).filter((f) => f.id.sqlEquals($_column));
-    final item = $_typedResult.readTableOrNull(_deeplinkIdTable($_db));
-    if (item == null) return manager;
-    return ProcessedTableManager(
-      manager.$state.copyWith(prefetchedData: [item]),
-    );
-  }
-}
-
-class $$DeeplinkVariantsTableFilterComposer
-    extends Composer<_$AppDatabase, $DeeplinkVariantsTable> {
-  $$DeeplinkVariantsTableFilterComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnFilters<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<String> get overridesJson => $composableBuilder(
-    column: $table.overridesJson,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnFilters(column),
-  );
-
-  $$DeeplinksTableFilterComposer get deeplinkId {
-    final $$DeeplinksTableFilterComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.deeplinkId,
-      referencedTable: $db.deeplinks,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$DeeplinksTableFilterComposer(
-            $db: $db,
-            $table: $db.deeplinks,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$DeeplinkVariantsTableOrderingComposer
-    extends Composer<_$AppDatabase, $DeeplinkVariantsTable> {
-  $$DeeplinkVariantsTableOrderingComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  ColumnOrderings<int> get id => $composableBuilder(
-    column: $table.id,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get name => $composableBuilder(
-    column: $table.name,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<String> get overridesJson => $composableBuilder(
-    column: $table.overridesJson,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
-    column: $table.createdAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
-    column: $table.updatedAt,
-    builder: (column) => ColumnOrderings(column),
-  );
-
-  $$DeeplinksTableOrderingComposer get deeplinkId {
-    final $$DeeplinksTableOrderingComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.deeplinkId,
-      referencedTable: $db.deeplinks,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$DeeplinksTableOrderingComposer(
-            $db: $db,
-            $table: $db.deeplinks,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$DeeplinkVariantsTableAnnotationComposer
-    extends Composer<_$AppDatabase, $DeeplinkVariantsTable> {
-  $$DeeplinkVariantsTableAnnotationComposer({
-    required super.$db,
-    required super.$table,
-    super.joinBuilder,
-    super.$addJoinBuilderToRootComposer,
-    super.$removeJoinBuilderFromRootComposer,
-  });
-  GeneratedColumn<int> get id =>
-      $composableBuilder(column: $table.id, builder: (column) => column);
-
-  GeneratedColumn<String> get name =>
-      $composableBuilder(column: $table.name, builder: (column) => column);
-
-  GeneratedColumn<String> get overridesJson => $composableBuilder(
-    column: $table.overridesJson,
-    builder: (column) => column,
-  );
-
-  GeneratedColumn<DateTime> get createdAt =>
-      $composableBuilder(column: $table.createdAt, builder: (column) => column);
-
-  GeneratedColumn<DateTime> get updatedAt =>
-      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
-
-  $$DeeplinksTableAnnotationComposer get deeplinkId {
-    final $$DeeplinksTableAnnotationComposer composer = $composerBuilder(
-      composer: this,
-      getCurrentColumn: (t) => t.deeplinkId,
-      referencedTable: $db.deeplinks,
-      getReferencedColumn: (t) => t.id,
-      builder:
-          (
-            joinBuilder, {
-            $addJoinBuilderToRootComposer,
-            $removeJoinBuilderFromRootComposer,
-          }) => $$DeeplinksTableAnnotationComposer(
-            $db: $db,
-            $table: $db.deeplinks,
-            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
-            joinBuilder: joinBuilder,
-            $removeJoinBuilderFromRootComposer:
-                $removeJoinBuilderFromRootComposer,
-          ),
-    );
-    return composer;
-  }
-}
-
-class $$DeeplinkVariantsTableTableManager
-    extends
-        RootTableManager<
-          _$AppDatabase,
-          $DeeplinkVariantsTable,
-          DeeplinkVariant,
-          $$DeeplinkVariantsTableFilterComposer,
-          $$DeeplinkVariantsTableOrderingComposer,
-          $$DeeplinkVariantsTableAnnotationComposer,
-          $$DeeplinkVariantsTableCreateCompanionBuilder,
-          $$DeeplinkVariantsTableUpdateCompanionBuilder,
-          (DeeplinkVariant, $$DeeplinkVariantsTableReferences),
-          DeeplinkVariant,
-          PrefetchHooks Function({bool deeplinkId})
-        > {
-  $$DeeplinkVariantsTableTableManager(
-    _$AppDatabase db,
-    $DeeplinkVariantsTable table,
-  ) : super(
-        TableManagerState(
-          db: db,
-          table: table,
-          createFilteringComposer: () =>
-              $$DeeplinkVariantsTableFilterComposer($db: db, $table: table),
-          createOrderingComposer: () =>
-              $$DeeplinkVariantsTableOrderingComposer($db: db, $table: table),
-          createComputedFieldComposer: () =>
-              $$DeeplinkVariantsTableAnnotationComposer($db: db, $table: table),
-          updateCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                Value<int> deeplinkId = const Value.absent(),
-                Value<String> name = const Value.absent(),
-                Value<String> overridesJson = const Value.absent(),
-                Value<DateTime> createdAt = const Value.absent(),
-                Value<DateTime> updatedAt = const Value.absent(),
-              }) => DeeplinkVariantsCompanion(
-                id: id,
-                deeplinkId: deeplinkId,
-                name: name,
-                overridesJson: overridesJson,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-              ),
-          createCompanionCallback:
-              ({
-                Value<int> id = const Value.absent(),
-                required int deeplinkId,
-                required String name,
-                Value<String> overridesJson = const Value.absent(),
-                required DateTime createdAt,
-                required DateTime updatedAt,
-              }) => DeeplinkVariantsCompanion.insert(
-                id: id,
-                deeplinkId: deeplinkId,
-                name: name,
-                overridesJson: overridesJson,
-                createdAt: createdAt,
-                updatedAt: updatedAt,
-              ),
-          withReferenceMapper: (p0) => p0
-              .map(
-                (e) => (
-                  e.readTable(table),
-                  $$DeeplinkVariantsTableReferences(db, table, e),
-                ),
-              )
-              .toList(),
-          prefetchHooksCallback: ({deeplinkId = false}) {
-            return PrefetchHooks(
-              db: db,
-              explicitlyWatchedTables: [],
-              addJoins:
-                  <
-                    T extends TableManagerState<
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic,
-                      dynamic
-                    >
-                  >(state) {
-                    if (deeplinkId) {
-                      state =
-                          state.withJoin(
-                                currentTable: table,
-                                currentColumn: table.deeplinkId,
-                                referencedTable:
-                                    $$DeeplinkVariantsTableReferences
-                                        ._deeplinkIdTable(db),
-                                referencedColumn:
-                                    $$DeeplinkVariantsTableReferences
-                                        ._deeplinkIdTable(db)
-                                        .id,
-                              )
-                              as T;
-                    }
-
-                    return state;
-                  },
-              getPrefetchedDataCallback: (items) async {
-                return [];
-              },
-            );
-          },
-        ),
-      );
-}
-
-typedef $$DeeplinkVariantsTableProcessedTableManager =
-    ProcessedTableManager<
-      _$AppDatabase,
-      $DeeplinkVariantsTable,
-      DeeplinkVariant,
-      $$DeeplinkVariantsTableFilterComposer,
-      $$DeeplinkVariantsTableOrderingComposer,
-      $$DeeplinkVariantsTableAnnotationComposer,
-      $$DeeplinkVariantsTableCreateCompanionBuilder,
-      $$DeeplinkVariantsTableUpdateCompanionBuilder,
-      (DeeplinkVariant, $$DeeplinkVariantsTableReferences),
-      DeeplinkVariant,
-      PrefetchHooks Function({bool deeplinkId})
-    >;
 
 class $AppDatabaseManager {
   final _$AppDatabase _db;
@@ -4365,6 +3500,4 @@ class $AppDatabaseManager {
       $$DeeplinksTableTableManager(_db, _db.deeplinks);
   $$DeeplinkHistoriesTableTableManager get deeplinkHistories =>
       $$DeeplinkHistoriesTableTableManager(_db, _db.deeplinkHistories);
-  $$DeeplinkVariantsTableTableManager get deeplinkVariants =>
-      $$DeeplinkVariantsTableTableManager(_db, _db.deeplinkVariants);
 }

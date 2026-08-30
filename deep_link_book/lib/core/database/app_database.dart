@@ -1,22 +1,13 @@
 import 'package:drift/drift.dart';
 
 import 'tables/deeplink_histories_table.dart';
-import 'tables/deeplink_variants_table.dart';
 import 'tables/deeplinks_table.dart';
 import 'tables/environments_table.dart';
 import 'tables/projects_table.dart';
 
 part 'app_database.g.dart';
 
-@DriftDatabase(
-  tables: [
-    Projects,
-    Environments,
-    Deeplinks,
-    DeeplinkHistories,
-    DeeplinkVariants,
-  ],
-)
+@DriftDatabase(tables: [Projects, Environments, Deeplinks, DeeplinkHistories])
 class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
@@ -24,7 +15,7 @@ class AppDatabase extends _$AppDatabase {
   static const defaultEnvironmentName = 'Default';
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration {
@@ -43,9 +34,6 @@ class AppDatabase extends _$AppDatabase {
         }
         if (from < 3) {
           await m.createTable(deeplinkHistories);
-        }
-        if (from < 5) {
-          await m.createTable(deeplinkVariants);
         }
         if (from < 4) {
           if (from >= 2) {
