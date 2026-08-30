@@ -111,6 +111,7 @@ class _EditDeeplinkFormContentState
 
     _syncProjectSelection(projects);
     _syncEnvironmentSelection(environments);
+    final environmentScheme = _selectedEnvironmentScheme(environments);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Edit Deeplink')),
@@ -125,6 +126,7 @@ class _EditDeeplinkFormContentState
             isSaving: _isSaving,
             onSubmit: _updateDeeplink,
             submitLabel: 'Save',
+            environmentScheme: environmentScheme,
             organizationFields: DeeplinkOrganizationFields(
               projects: projects,
               environments: environments,
@@ -274,6 +276,24 @@ class _EditDeeplinkFormContentState
         });
       });
     });
+  }
+
+  String? _selectedEnvironmentScheme(
+    AsyncValue<List<Environment>> environments,
+  ) {
+    final selectedEnvironmentId = _selectedEnvironmentId;
+
+    if (selectedEnvironmentId == null) {
+      return null;
+    }
+
+    for (final environment in environments.value ?? const []) {
+      if (environment.id == selectedEnvironmentId) {
+        return environment.scheme;
+      }
+    }
+
+    return null;
   }
 }
 

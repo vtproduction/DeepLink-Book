@@ -51,6 +51,7 @@ class _AddDeeplinkScreenState extends ConsumerState<AddDeeplinkScreen> {
 
     _syncProjectSelection(projects);
     _syncEnvironmentSelection(environments);
+    final environmentScheme = _selectedEnvironmentScheme(environments);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Add Deeplink')),
@@ -65,6 +66,7 @@ class _AddDeeplinkScreenState extends ConsumerState<AddDeeplinkScreen> {
             isSaving: _isSaving,
             onSubmit: _saveDeeplink,
             submitLabel: 'Save',
+            environmentScheme: environmentScheme,
             organizationFields: DeeplinkOrganizationFields(
               projects: projects,
               environments: environments,
@@ -198,5 +200,23 @@ class _AddDeeplinkScreenState extends ConsumerState<AddDeeplinkScreen> {
         });
       });
     });
+  }
+
+  String? _selectedEnvironmentScheme(
+    AsyncValue<List<Environment>> environments,
+  ) {
+    final selectedEnvironmentId = _selectedEnvironmentId;
+
+    if (selectedEnvironmentId == null) {
+      return null;
+    }
+
+    for (final environment in environments.value ?? const []) {
+      if (environment.id == selectedEnvironmentId) {
+        return environment.scheme;
+      }
+    }
+
+    return null;
   }
 }
