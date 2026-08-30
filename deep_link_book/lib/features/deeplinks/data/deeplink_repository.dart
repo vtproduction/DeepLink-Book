@@ -139,9 +139,15 @@ class DeeplinkRepository {
   }
 
   Future<bool> deleteDeeplink(int id) async {
-    final deletedRows = await (_database.delete(
-      _database.deeplinks,
-    )..where((deeplink) => deeplink.id.equals(id))).go();
+    final deletedRows = await _database.transaction(() async {
+      await (_database.delete(
+        _database.deeplinkVariants,
+      )..where((variant) => variant.deeplinkId.equals(id))).go();
+
+      return (_database.delete(
+        _database.deeplinks,
+      )..where((deeplink) => deeplink.id.equals(id))).go();
+    });
 
     return deletedRows > 0;
   }
