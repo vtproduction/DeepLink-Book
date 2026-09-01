@@ -10,6 +10,7 @@ import '../../../core/database/app_database.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../data/deeplink_repository.dart';
+import '../developer_tools/developer_tools_view.dart';
 import '../providers/deeplink_providers.dart';
 import '../validation/deeplink_validator.dart';
 import '../widgets/deeplink_list_item.dart';
@@ -210,6 +211,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                               onFavoriteTap: () => _toggleFavorite(deeplink),
                               onEdit: () => _openEditScreen(deeplink),
                               onCopy: () => _copyDeeplinkUrl(deeplink.url),
+                              onDeveloperTools: () =>
+                                  _showDeveloperTools(deeplink.url),
                               onDuplicate: () => _duplicateDeeplink(deeplink),
                               onDelete: () =>
                                   _confirmAndDeleteDeeplink(deeplink),
@@ -390,6 +393,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Unable to copy deeplink.')));
     }
+  }
+
+  Future<void> _showDeveloperTools(String url) {
+    return showDeveloperToolsSheet(context: context, url: url.trim());
   }
 
   Future<void> _openDeeplink(Deeplink deeplink) async {

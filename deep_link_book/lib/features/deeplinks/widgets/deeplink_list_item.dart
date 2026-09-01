@@ -16,6 +16,7 @@ class DeeplinkListItem extends StatelessWidget {
     this.onFavoriteTap,
     this.onEdit,
     this.onCopy,
+    this.onDeveloperTools,
     this.onDuplicate,
     this.onDelete,
   });
@@ -29,6 +30,7 @@ class DeeplinkListItem extends StatelessWidget {
   final VoidCallback? onFavoriteTap;
   final VoidCallback? onEdit;
   final VoidCallback? onCopy;
+  final VoidCallback? onDeveloperTools;
   final VoidCallback? onDuplicate;
   final VoidCallback? onDelete;
 
@@ -123,6 +125,8 @@ class DeeplinkListItem extends StatelessWidget {
                     onEdit?.call();
                   case _DeeplinkListItemAction.copy:
                     onCopy?.call();
+                  case _DeeplinkListItemAction.developerTools:
+                    onDeveloperTools?.call();
                   case _DeeplinkListItemAction.duplicate:
                     onDuplicate?.call();
                   case _DeeplinkListItemAction.delete:
@@ -138,6 +142,10 @@ class DeeplinkListItem extends StatelessWidget {
                   const PopupMenuItem(
                     value: _DeeplinkListItemAction.copy,
                     child: Text('Copy'),
+                  ),
+                  const PopupMenuItem(
+                    value: _DeeplinkListItemAction.developerTools,
+                    child: Text('Tools'),
                   ),
                   const PopupMenuItem(
                     value: _DeeplinkListItemAction.duplicate,
@@ -182,4 +190,4 @@ class DeeplinkListItem extends StatelessWidget {
   }
 }
 
-enum _DeeplinkListItemAction { edit, copy, duplicate, delete }
+enum _DeeplinkListItemAction { edit, copy, developerTools, duplicate, delete }
