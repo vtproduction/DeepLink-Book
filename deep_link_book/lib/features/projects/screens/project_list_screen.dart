@@ -8,6 +8,9 @@ import '../../../core/database/app_database.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../environments/providers/environment_providers.dart';
+import '../../import_export/import_export_file_service.dart';
+import '../../import_export/project_exporter.dart';
+import '../../import_export/project_importer.dart';
 import '../data/project_repository.dart';
 import '../providers/project_providers.dart';
 
@@ -19,7 +22,16 @@ class ProjectListScreen extends ConsumerWidget {
     final projects = ref.watch(projectsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Projects')),
+      appBar: AppBar(
+        title: const Text('Projects'),
+        actions: [
+          IconButton(
+            tooltip: 'Import project',
+            onPressed: () => _importProject(context, ref),
+            icon: const Icon(Icons.upload_file),
+          ),
+        ],
+      ),
       body: projects.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stackTrace) => const Center(
@@ -59,6 +71,8 @@ class ProjectListScreen extends ConsumerWidget {
                           AppRoute.environments.name,
                           pathParameters: {'projectId': project.id.toString()},
                         );
+                      case _ProjectAction.export:
+                        await _exportProject(context, ref, project);
                       case _ProjectAction.edit:
                         await _showProjectDialog(context, ref, project);
                       case _ProjectAction.delete:
@@ -74,6 +88,10 @@ class ProjectListScreen extends ConsumerWidget {
                     PopupMenuItem(
                       value: _ProjectAction.environments,
                       child: Text('Manage environments'),
+                    ),
+                    PopupMenuItem(
+                      value: _ProjectAction.export,
+                      child: Text('Export'),
                     ),
                     PopupMenuItem(
                       value: _ProjectAction.edit,
@@ -97,6 +115,93 @@ class ProjectListScreen extends ConsumerWidget {
         child: const Icon(Icons.add),
       ),
     );
+  }
+
+  Future<void> _exportProject(
+    BuildContext context,
+    WidgetRef ref,
+    Project project,
+  ) async {
+    try {
+      final exportData = await ref
+          .read(projectExporterProvider)
+          .exportProject(project.id);
+
+      if (!context.mounted) {
+        return;
+      }
+
+      if (exportData == null) {
+        _showSnackBar(context, 'Project no longer exists.');
+        return;
+      }
+
+      final saved = await ref
+          .read(importExportFileServiceProvider)
+          .saveExportFile(
+            fileName: buildProjectExportFileName(project.name),
+            content: exportData.toPrettyJson(),
+          );
+
+      if (!context.mounted) {
+        return;
+      }
+
+      if (saved) {
+        _showSnackBar(context, 'Exported "${project.name}".');
+      }
+    } catch (_) {
+      if (!context.mounted) {
+        return;
+      }
+
+      _showSnackBar(context, 'Unable to export project.');
+    }
+  }
+
+  Future<void> _importProject(BuildContext context, WidgetRef ref) async {
+    try {
+      final content = await ref
+          .read(importExportFileServiceProvider)
+          .pickImportFileContent();
+
+      if (content == null || !context.mounted) {
+        return;
+      }
+
+      final importer = ref.read(projectImporterProvider);
+      final preview = importer.previewImport(content);
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => _ImportPreviewDialog(preview: preview),
+      );
+
+      if (confirmed != true || !context.mounted) {
+        return;
+      }
+
+      final result = await importer.importProject(content);
+
+      if (!context.mounted) {
+        return;
+      }
+
+      ref.read(currentProjectIdProvider.notifier).select(result.projectId);
+      ref.read(currentEnvironmentIdProvider.notifier).select(null);
+      _showSnackBar(context, 'Imported "${result.projectName}".');
+    } on ProjectImportException catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+
+      _showSnackBar(context, 'Import failed: ${error.message}');
+    } catch (_) {
+      if (!context.mounted) {
+        return;
+      }
+
+      _showSnackBar(context, 'Unable to import project.');
+    }
   }
 
   Future<void> _showProjectDialog(
@@ -173,6 +278,48 @@ class ProjectListScreen extends ConsumerWidget {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Project deleted.')));
+  }
+
+  void _showSnackBar(BuildContext context, String message) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _ImportPreviewDialog extends StatelessWidget {
+  const _ImportPreviewDialog({required this.preview});
+
+  final ProjectImportPreview preview;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Import Project'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            preview.projectName,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text('${preview.environmentCount} environments'),
+          Text('${preview.deeplinkCount} deeplinks'),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => context.pop(false),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => context.pop(true),
+          child: const Text('Import'),
+        ),
+      ],
+    );
   }
 }
 
@@ -305,4 +452,4 @@ class _ProjectDialogState extends ConsumerState<_ProjectDialog> {
   }
 }
 
-enum _ProjectAction { environments, edit, delete }
+enum _ProjectAction { environments, export, edit, delete }
