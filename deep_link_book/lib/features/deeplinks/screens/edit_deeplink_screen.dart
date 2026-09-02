@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/widgets/app_empty_state.dart';
+import '../../../core/widgets/app_loading_state.dart';
 import '../data/deeplink_repository.dart';
 import '../providers/deeplink_providers.dart';
 import '../widgets/deeplink_organization_fields.dart';
@@ -34,7 +35,7 @@ class EditDeeplinkScreen extends ConsumerWidget {
     return deeplink.when(
       loading: () => Scaffold(
         appBar: AppBar(title: const Text('Edit Deeplink')),
-        body: const Center(child: CircularProgressIndicator()),
+        body: const AppLoadingState(),
       ),
       error: (error, stackTrace) => const _EditDeeplinkStateScaffold(
         icon: Icons.error_outline,

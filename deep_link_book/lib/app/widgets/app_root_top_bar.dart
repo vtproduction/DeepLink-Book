@@ -79,7 +79,7 @@ class _AppRootTopBarState extends State<AppRootTopBar> {
       return AppBar(
         leading: IconButton(
           tooltip: 'Close search',
-          onPressed: widget.onSearchClose,
+          onPressed: _closeSearch,
           icon: const Icon(Icons.arrow_back),
         ),
         title: TextField(
@@ -96,7 +96,7 @@ class _AppRootTopBarState extends State<AppRootTopBar> {
         actions: [
           IconButton(
             tooltip: 'Clear search',
-            onPressed: widget.onSearchClose,
+            onPressed: _closeSearch,
             icon: const Icon(Icons.close),
           ),
         ],
@@ -119,5 +119,10 @@ class _AppRootTopBarState extends State<AppRootTopBar> {
         ),
       ],
     );
+  }
+
+  void _closeSearch() {
+    _searchFocusNode.unfocus();
+    widget.onSearchClose();
   }
 }

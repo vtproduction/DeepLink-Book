@@ -11,7 +11,9 @@ import '../../../core/deeplink/deeplink_launcher.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/utils/date_time_formatter.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
+import '../../../core/widgets/app_error_state.dart';
 import '../../../core/widgets/app_empty_state.dart';
+import '../../../core/widgets/app_loading_state.dart';
 import '../data/deeplink_repository.dart';
 import '../developer_tools/developer_tools_view.dart';
 import '../providers/deeplink_providers.dart';
@@ -122,17 +124,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
   Widget _buildDeeplinkListBody(AsyncValue<List<Deeplink>> deeplinks) {
     return deeplinks.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const AppLoadingState(),
       error: (error, stackTrace) => Center(
-        child: AppEmptyState(
-          icon: Icons.error_outline,
+        child: AppErrorState(
           title: 'Unable to load deeplinks',
-          description: 'Please try again.',
-          action: FilledButton.icon(
-            onPressed: () => ref.invalidate(allDeeplinksProvider),
-            icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
-          ),
+          description: 'Please try again later.',
+          onRetry: () => ref.invalidate(allDeeplinksProvider),
         ),
       ),
       data: (deeplinks) {
@@ -187,6 +184,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
                 child: Center(
                   child: _emptyStateForVisibleDeeplinks(
                     hasSearchQuery: hasSearchQuery,
+                    query: _searchQuery,
                   ),
                 ),
               )
@@ -240,7 +238,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         (recentHistory.isLoading && !recentHistory.hasValue);
 
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const AppLoadingState();
     }
 
     final hasError =
@@ -248,19 +246,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
     if (hasError) {
       return Center(
-        child: AppEmptyState(
-          icon: Icons.error_outline,
+        child: AppErrorState(
           title: 'Unable to load Home',
-          description: 'Please try again.',
-          action: FilledButton.icon(
-            onPressed: () {
-              ref.invalidate(allDeeplinksProvider);
-              ref.invalidate(projectsProvider);
-              ref.invalidate(recentHistoryProvider(3));
-            },
-            icon: const Icon(Icons.refresh),
-            label: const Text('Retry'),
-          ),
+          description: 'Please try again later.',
+          onRetry: () {
+            ref.invalidate(allDeeplinksProvider);
+            ref.invalidate(projectsProvider);
+            ref.invalidate(recentHistoryProvider(3));
+          },
         ),
       );
     }
@@ -304,11 +297,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     );
   }
 
-  Widget _emptyStateForVisibleDeeplinks({required bool hasSearchQuery}) {
+  Widget _emptyStateForVisibleDeeplinks({
+    required bool hasSearchQuery,
+    required String query,
+  }) {
     if (hasSearchQuery) {
-      return const AppEmptyState(
+      return AppEmptyState(
         icon: Icons.search_off,
-        title: 'No matching deeplinks',
+        title: 'No results for "$query"',
         description: 'Try a different search term.',
       );
     }
@@ -401,6 +397,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   void _closeSearch() {
+    FocusScope.of(context).unfocus();
     setState(() {
       _searchQuery = '';
       _isSearching = false;

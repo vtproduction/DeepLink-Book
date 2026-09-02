@@ -9,7 +9,9 @@ import '../../../app/widgets/app_root_top_bar.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/deeplink/deeplink_launcher.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
+import '../../../core/widgets/app_error_state.dart';
 import '../../../core/widgets/app_empty_state.dart';
+import '../../../core/widgets/app_loading_state.dart';
 import '../../deeplinks/validation/deeplink_validator.dart';
 import '../data/history_repository.dart';
 import '../providers/history_providers.dart';
@@ -56,12 +58,12 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           onSettingsPressed: _openSettings,
         ),
         body: history.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => const Center(
-            child: AppEmptyState(
-              icon: Icons.error_outline,
-              title: 'Unable to load history.',
+          loading: () => const AppLoadingState(),
+          error: (error, stackTrace) => Center(
+            child: AppErrorState(
+              title: 'Unable to load history',
               description: 'Please try again later.',
+              onRetry: () => ref.invalidate(historyProvider),
             ),
           ),
           data: (historyItems) {
@@ -80,7 +82,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       : 'No history yet',
                   description: hasSearchQuery
                       ? 'Try a different search term.'
-                      : 'Opened deeplinks will appear here.',
+                      : 'Deeplinks you open will appear here.',
                 ),
               );
             }
@@ -185,6 +187,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   }
 
   void _closeSearch() {
+    FocusScope.of(context).unfocus();
     setState(() {
       _searchQuery = '';
       _isSearching = false;

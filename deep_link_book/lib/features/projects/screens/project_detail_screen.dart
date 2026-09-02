@@ -8,7 +8,9 @@ import '../../../app/theme/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/deeplink/deeplink_launcher.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
+import '../../../core/widgets/app_error_state.dart';
 import '../../../core/widgets/app_empty_state.dart';
+import '../../../core/widgets/app_loading_state.dart';
 import '../../deeplinks/data/deeplink_repository.dart';
 import '../../deeplinks/developer_tools/developer_tools_view.dart';
 import '../../deeplinks/providers/deeplink_providers.dart';
@@ -169,15 +171,18 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
     required int deeplinkCount,
   }) {
     if (isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const AppLoadingState();
     }
 
     if (hasError) {
-      return const Center(
-        child: AppEmptyState(
-          icon: Icons.error_outline,
+      return Center(
+        child: AppErrorState(
           title: 'Unable to load project',
           description: 'Please try again later.',
+          onRetry: () {
+            ref.invalidate(projectsProvider);
+            ref.invalidate(allDeeplinksProvider);
+          },
         ),
       );
     }
@@ -303,6 +308,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
   }
 
   void _closeSearch() {
+    FocusScope.of(context).unfocus();
     setState(() {
       _searchController.clear();
       _searchQuery = '';
@@ -348,7 +354,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
 
     if (!deleted) {
       _showSnackBar(
-        'This project cannot be deleted while it contains deeplinks or environments.',
+        'This project cannot be deleted while it still contains saved data.',
       );
       return;
     }

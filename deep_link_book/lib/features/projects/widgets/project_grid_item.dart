@@ -22,9 +22,10 @@ class ProjectGridItem extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final description = project.description;
 
-    return Card.outlined(
+    return Card(
       clipBehavior: Clip.antiAlias,
       shape: RoundedRectangleBorder(
+        side: BorderSide(color: colorScheme.outlineVariant),
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: InkWell(

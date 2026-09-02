@@ -9,7 +9,9 @@ import '../../../app/widgets/app_root_top_bar.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/deeplink/deeplink_launcher.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
+import '../../../core/widgets/app_error_state.dart';
 import '../../../core/widgets/app_empty_state.dart';
+import '../../../core/widgets/app_loading_state.dart';
 import '../../history/data/history_repository.dart';
 import '../data/deeplink_repository.dart';
 import '../developer_tools/developer_tools_view.dart';
@@ -57,17 +59,12 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
           onSettingsPressed: _openSettings,
         ),
         body: deeplinks.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const AppLoadingState(),
           error: (error, stackTrace) => Center(
-            child: AppEmptyState(
-              icon: Icons.error_outline,
+            child: AppErrorState(
               title: 'Unable to load favorites',
-              description: 'Please try again.',
-              action: FilledButton.icon(
-                onPressed: () => ref.invalidate(allDeeplinksProvider),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
+              description: 'Please try again later.',
+              onRetry: () => ref.invalidate(allDeeplinksProvider),
             ),
           ),
           data: (deeplinks) {
@@ -158,6 +155,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   }
 
   void _closeSearch() {
+    FocusScope.of(context).unfocus();
     setState(() {
       _searchQuery = '';
       _isSearching = false;

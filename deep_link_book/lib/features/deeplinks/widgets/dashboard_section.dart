@@ -24,7 +24,7 @@ class DashboardSection extends StatelessWidget {
         Row(
           children: [
             Expanded(child: Text(title, style: textTheme.titleMedium)),
-            if (action != null) action!,
+            ?action,
           ],
         ),
         const SizedBox(height: AppSpacing.sm),
