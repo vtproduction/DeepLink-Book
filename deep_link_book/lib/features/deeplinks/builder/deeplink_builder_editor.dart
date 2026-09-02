@@ -15,7 +15,6 @@ class DeeplinkBuilderEditor extends StatefulWidget {
     required this.rawCannotSyncToBuilder,
     required this.onBuilderChanged,
     required this.enabled,
-    this.environmentScheme,
   });
 
   final ParsedDeeplink? parsedDeeplink;
@@ -24,7 +23,6 @@ class DeeplinkBuilderEditor extends StatefulWidget {
   final void Function(String url, ParsedDeeplink? parsedDeeplink)
   onBuilderChanged;
   final bool enabled;
-  final String? environmentScheme;
 
   @override
   State<DeeplinkBuilderEditor> createState() => _DeeplinkBuilderEditorState();
@@ -35,8 +33,6 @@ class _DeeplinkBuilderEditorState extends State<DeeplinkBuilderEditor> {
   late final TextEditingController _hostController;
   late final TextEditingController _pathController;
   final _parameters = <_QueryParameterControllers>[];
-  var _previewUrl = '';
-  var _hasUserEditedScheme = false;
   var _isApplyingParsedDeeplink = false;
 
   @override
@@ -44,7 +40,7 @@ class _DeeplinkBuilderEditorState extends State<DeeplinkBuilderEditor> {
     super.initState();
 
     _schemeController = TextEditingController(
-      text: widget.parsedDeeplink?.scheme ?? widget.environmentScheme ?? '',
+      text: widget.parsedDeeplink?.scheme ?? '',
     );
     _hostController = TextEditingController(
       text: widget.parsedDeeplink?.host ?? '',
@@ -55,26 +51,16 @@ class _DeeplinkBuilderEditorState extends State<DeeplinkBuilderEditor> {
 
     _replaceParameters(widget.parsedDeeplink?.queryParameters ?? const []);
 
-    _schemeController.addListener(() {
-      if (!_isApplyingParsedDeeplink) {
-        _hasUserEditedScheme = true;
-      }
-
-      _handleBuilderChanged();
-    });
+    _schemeController.addListener(_handleBuilderChanged);
     _hostController.addListener(_handleBuilderChanged);
     _pathController.addListener(_handleBuilderChanged);
 
-    _updatePreview(notify: false);
+    _updatePreview();
   }
 
   @override
   void didUpdateWidget(covariant DeeplinkBuilderEditor oldWidget) {
     super.didUpdateWidget(oldWidget);
-
-    if (widget.environmentScheme != oldWidget.environmentScheme) {
-      _applyEnvironmentSchemeIfUseful();
-    }
 
     if (widget.parsedDeeplink != null &&
         widget.parsedDeeplinkVersion != oldWidget.parsedDeeplinkVersion) {
@@ -100,129 +86,66 @@ class _DeeplinkBuilderEditorState extends State<DeeplinkBuilderEditor> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Builder', style: textTheme.titleMedium),
-            if (widget.rawCannotSyncToBuilder) ...[
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'Raw URL is currently invalid. Fix it before synchronizing with Builder.',
-                style: textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-            const SizedBox(height: AppSpacing.md),
-            TextFormField(
-              controller: _schemeController,
-              decoration: InputDecoration(
-                labelText: 'Scheme',
-                suffixIcon: _canUseEnvironmentScheme
-                    ? IconButton(
-                        tooltip: 'Use environment scheme',
-                        onPressed: widget.enabled
-                            ? _useEnvironmentScheme
-                            : null,
-                        icon: const Icon(Icons.auto_fix_high),
-                      )
-                    : null,
-              ),
-              textInputAction: TextInputAction.next,
-              autocorrect: false,
-              enabled: widget.enabled,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (widget.rawCannotSyncToBuilder) ...[
+          Text(
+            'Raw URL is currently invalid. Fix it before synchronizing with Builder.',
+            style: textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
             ),
-            const SizedBox(height: AppSpacing.md),
-            TextFormField(
-              controller: _hostController,
-              decoration: const InputDecoration(labelText: 'Host'),
-              textInputAction: TextInputAction.next,
-              autocorrect: false,
-              enabled: widget.enabled,
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextFormField(
-              controller: _pathController,
-              decoration: const InputDecoration(labelText: 'Path'),
-              textInputAction: TextInputAction.next,
-              autocorrect: false,
-              enabled: widget.enabled,
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            Text('Query Parameters', style: textTheme.titleSmall),
-            const SizedBox(height: AppSpacing.sm),
-            for (var index = 0; index < _parameters.length; index++) ...[
-              _QueryParameterRow(
-                parameter: _parameters[index],
-                enabled: widget.enabled,
-                onDelete: () => _deleteParameter(index),
-                onChanged: _handleBuilderChanged,
-              ),
-              if (index < _parameters.length - 1)
-                const SizedBox(height: AppSpacing.sm),
-            ],
-            const SizedBox(height: AppSpacing.sm),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                onPressed: widget.enabled ? _addParameter : null,
-                icon: const Icon(Icons.add),
-                label: const Text('Add Parameter'),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Text('Preview', style: textTheme.titleSmall),
-            const SizedBox(height: AppSpacing.xs),
-            SelectableText(
-              _previewUrl.isEmpty ? 'Preview will appear here.' : _previewUrl,
-              style: textTheme.bodyMedium?.copyWith(
-                color: _previewUrl.isEmpty
-                    ? colorScheme.onSurfaceVariant
-                    : colorScheme.onSurface,
-              ),
-            ),
-          ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+        ],
+        _BuilderSectionTitle('URL Structure'),
+        TextFormField(
+          controller: _schemeController,
+          decoration: const InputDecoration(labelText: 'Scheme'),
+          textInputAction: TextInputAction.next,
+          autocorrect: false,
+          enabled: widget.enabled,
         ),
-      ),
+        const SizedBox(height: AppSpacing.md),
+        TextFormField(
+          controller: _hostController,
+          decoration: const InputDecoration(labelText: 'Host'),
+          textInputAction: TextInputAction.next,
+          autocorrect: false,
+          enabled: widget.enabled,
+        ),
+        const SizedBox(height: AppSpacing.md),
+        TextFormField(
+          controller: _pathController,
+          decoration: const InputDecoration(labelText: 'Path'),
+          textInputAction: TextInputAction.next,
+          autocorrect: false,
+          enabled: widget.enabled,
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        _BuilderSectionTitle('Query Parameters'),
+        if (_parameters.isEmpty) const _EmptyParametersHint(),
+        for (var index = 0; index < _parameters.length; index++) ...[
+          _QueryParameterRow(
+            parameter: _parameters[index],
+            enabled: widget.enabled,
+            onDelete: () => _deleteParameter(index),
+            onChanged: _handleBuilderChanged,
+          ),
+          if (index < _parameters.length - 1)
+            const SizedBox(height: AppSpacing.sm),
+        ],
+        const SizedBox(height: AppSpacing.sm),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: widget.enabled ? _addParameter : null,
+            icon: const Icon(Icons.add),
+            label: const Text('Add Parameter'),
+          ),
+        ),
+      ],
     );
-  }
-
-  bool get _canUseEnvironmentScheme {
-    final environmentScheme = widget.environmentScheme;
-
-    return environmentScheme != null &&
-        environmentScheme.isNotEmpty &&
-        _schemeController.text != environmentScheme;
-  }
-
-  void _applyEnvironmentSchemeIfUseful() {
-    final environmentScheme = widget.environmentScheme;
-
-    if (environmentScheme == null ||
-        environmentScheme.isEmpty ||
-        _hasUserEditedScheme ||
-        _schemeController.text.isNotEmpty) {
-      return;
-    }
-
-    _schemeController.text = environmentScheme;
-  }
-
-  void _useEnvironmentScheme() {
-    final environmentScheme = widget.environmentScheme;
-
-    if (environmentScheme == null || environmentScheme.isEmpty) {
-      return;
-    }
-
-    _schemeController.text = environmentScheme;
   }
 
   void _addParameter() {
@@ -252,19 +175,9 @@ class _DeeplinkBuilderEditorState extends State<DeeplinkBuilderEditor> {
     widget.onBuilderChanged(nextPreview, parsed);
   }
 
-  String _updatePreview({ParsedDeeplink? parsed, bool notify = true}) {
+  String _updatePreview({ParsedDeeplink? parsed}) {
     final deeplink = parsed ?? _buildParsedDeeplink();
-    final nextPreview = deeplink == null ? '' : _tryBuildPreview(deeplink);
-
-    if (mounted && notify) {
-      setState(() {
-        _previewUrl = nextPreview;
-      });
-    } else {
-      _previewUrl = nextPreview;
-    }
-
-    return nextPreview;
+    return deeplink == null ? '' : _tryBuildPreview(deeplink);
   }
 
   ParsedDeeplink? _buildParsedDeeplink() {
@@ -355,6 +268,8 @@ class _QueryParameterRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final parameterName = parameter.keyController.text.trim();
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -369,97 +284,149 @@ class _QueryParameterRow extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.sm),
+        padding: const EdgeInsets.all(AppSpacing.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.xs),
-                  child: Tooltip(
-                    message: parameter.enabled
-                        ? 'Included in generated URL'
-                        : 'Excluded from generated URL',
-                    child: Checkbox(
-                      value: parameter.enabled,
-                      onChanged: enabled
-                          ? (value) {
-                              parameter.enabled = value ?? true;
-                              onChanged();
-                            }
-                          : null,
-                    ),
+                Tooltip(
+                  message: parameter.enabled
+                      ? 'Included in generated URL'
+                      : 'Excluded from generated URL',
+                  child: Checkbox(
+                    value: parameter.enabled,
+                    visualDensity: VisualDensity.compact,
+                    onChanged: enabled
+                        ? (value) {
+                            parameter.enabled = value ?? true;
+                            onChanged();
+                          }
+                        : null,
                   ),
                 ),
-                const SizedBox(width: AppSpacing.xs),
+                const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: TextFormField(
-                    controller: parameter.keyController,
-                    decoration: const InputDecoration(
-                      hintText: 'Key',
-                      isDense: true,
-                    ),
-                    textInputAction: TextInputAction.next,
-                    autocorrect: false,
-                    enabled: enabled,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        parameterName.isEmpty ? 'New parameter' : parameterName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.titleSmall,
+                      ),
+                      Text(
+                        parameter.enabled
+                            ? 'Included in generated URL'
+                            : 'Excluded from generated URL',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(width: AppSpacing.xs),
-                IconButton(
-                  tooltip: 'Delete parameter',
-                  onPressed: enabled ? onDelete : null,
-                  icon: const Icon(Icons.close),
+                PopupMenuButton<_ParameterAction>(
+                  tooltip: 'Parameter actions',
+                  enabled: enabled,
+                  onSelected: (action) {
+                    switch (action) {
+                      case _ParameterAction.delete:
+                        onDelete();
+                    }
+                  },
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: _ParameterAction.delete,
+                      child: ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Icon(Icons.delete_outline),
+                        title: Text('Delete Parameter'),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
             const SizedBox(height: AppSpacing.sm),
-            Padding(
-              padding: const EdgeInsets.only(left: 48),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: _ParameterValueInput(
-                      parameter: parameter,
-                      enabled: enabled,
-                      onChanged: onChanged,
-                    ),
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  SizedBox(
-                    width: 128,
-                    child: DropdownButtonFormField<DeeplinkParameterType>(
-                      initialValue: parameter.type,
-                      isExpanded: true,
-                      decoration: const InputDecoration(
-                        hintText: 'Type',
-                        isDense: true,
-                      ),
-                      items: DeeplinkParameterType.values.map((type) {
-                        return DropdownMenuItem(
-                          value: type,
-                          child: Text(type.label),
-                        );
-                      }).toList(),
-                      onChanged: enabled
-                          ? (type) {
-                              if (type == null) {
-                                return;
-                              }
+            TextFormField(
+              controller: parameter.keyController,
+              decoration: const InputDecoration(labelText: 'Key'),
+              textInputAction: TextInputAction.next,
+              autocorrect: false,
+              enabled: enabled,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            _ParameterValueInput(
+              parameter: parameter,
+              enabled: enabled,
+              onChanged: onChanged,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            DropdownButtonFormField<DeeplinkParameterType>(
+              initialValue: parameter.type,
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Type'),
+              items: DeeplinkParameterType.values.map((type) {
+                return DropdownMenuItem(value: type, child: Text(type.label));
+              }).toList(),
+              onChanged: enabled
+                  ? (type) {
+                      if (type == null) {
+                        return;
+                      }
 
-                              parameter.setType(type);
-                              onChanged();
-                            }
-                          : null,
-                    ),
-                  ),
-                ],
-              ),
+                      parameter.setType(type);
+                      onChanged();
+                    }
+                  : null,
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+enum _ParameterAction { delete }
+
+class _BuilderSectionTitle extends StatelessWidget {
+  const _BuilderSectionTitle(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Text(
+        title.toUpperCase(),
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+          color: colorScheme.primary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyParametersHint extends StatelessWidget {
+  const _EmptyParametersHint();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Text(
+        'Add a parameter when this deeplink needs query values.',
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
       ),
     );
   }
@@ -482,7 +449,7 @@ class _ParameterValueInput extends StatelessWidget {
       return DropdownButtonFormField<String>(
         initialValue: parameter.normalizedBooleanValue,
         isExpanded: true,
-        decoration: const InputDecoration(hintText: 'Value', isDense: true),
+        decoration: const InputDecoration(labelText: 'Value'),
         items: const [
           DropdownMenuItem(value: 'true', child: Text('true')),
           DropdownMenuItem(value: 'false', child: Text('false')),
@@ -502,7 +469,7 @@ class _ParameterValueInput extends StatelessWidget {
 
     return TextFormField(
       controller: parameter.valueController,
-      decoration: const InputDecoration(hintText: 'Value', isDense: true),
+      decoration: const InputDecoration(labelText: 'Value'),
       keyboardType: parameter.type == DeeplinkParameterType.number
           ? const TextInputType.numberWithOptions(decimal: true, signed: true)
           : TextInputType.text,

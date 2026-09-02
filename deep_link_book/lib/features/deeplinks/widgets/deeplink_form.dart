@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
+import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../builder/deeplink_builder_editor.dart';
 import '../builder/deeplink_parser.dart';
@@ -16,10 +18,10 @@ class DeeplinkForm extends StatefulWidget {
     required this.urlController,
     required this.descriptionController,
     required this.isSaving,
+    required this.onCancel,
     required this.onSubmit,
     required this.submitLabel,
-    this.organizationFields,
-    this.environmentScheme,
+    this.projectField,
   });
 
   final GlobalKey<FormState> formKey;
@@ -27,10 +29,10 @@ class DeeplinkForm extends StatefulWidget {
   final TextEditingController urlController;
   final TextEditingController descriptionController;
   final bool isSaving;
+  final VoidCallback onCancel;
   final VoidCallback onSubmit;
   final String submitLabel;
-  final Widget? organizationFields;
-  final String? environmentScheme;
+  final Widget? projectField;
 
   @override
   State<DeeplinkForm> createState() => _DeeplinkFormState();
@@ -114,7 +116,7 @@ class _DeeplinkFormState extends State<DeeplinkForm> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          ?widget.organizationFields,
+          const _SectionTitle('Basic Info'),
           TextFormField(
             controller: widget.nameController,
             decoration: const InputDecoration(
@@ -126,6 +128,17 @@ class _DeeplinkFormState extends State<DeeplinkForm> {
             enabled: !widget.isSaving,
           ),
           const SizedBox(height: AppSpacing.md),
+          ?widget.projectField,
+          TextFormField(
+            controller: widget.descriptionController,
+            decoration: const InputDecoration(labelText: 'Description'),
+            keyboardType: TextInputType.multiline,
+            textInputAction: TextInputAction.newline,
+            maxLines: 3,
+            enabled: !widget.isSaving,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          const _SectionTitle('Deeplink'),
           SegmentedButton<_DeeplinkEditorMode>(
             segments: const [
               ButtonSegment(value: _DeeplinkEditorMode.raw, label: Text('Raw')),
@@ -144,6 +157,8 @@ class _DeeplinkFormState extends State<DeeplinkForm> {
                   },
           ),
           const SizedBox(height: AppSpacing.md),
+          _CurrentUrlPreview(urlController: widget.urlController),
+          const SizedBox(height: AppSpacing.md),
           if (_mode == _DeeplinkEditorMode.raw)
             _RawUrlField(
               urlController: widget.urlController,
@@ -157,33 +172,169 @@ class _DeeplinkFormState extends State<DeeplinkForm> {
               rawCannotSyncToBuilder: _rawCannotSyncToBuilder,
               onBuilderChanged: _handleBuilderChanged,
               enabled: !widget.isSaving,
-              environmentScheme: widget.environmentScheme,
             ),
             _BuilderUrlValidationField(urlController: widget.urlController),
           ],
-          const SizedBox(height: AppSpacing.md),
-          TextFormField(
-            controller: widget.descriptionController,
-            decoration: const InputDecoration(labelText: 'Description'),
-            keyboardType: TextInputType.multiline,
-            textInputAction: TextInputAction.newline,
-            maxLines: 3,
-            enabled: !widget.isSaving,
-          ),
           const SizedBox(height: AppSpacing.lg),
-          Align(
-            alignment: Alignment.centerRight,
-            child: FilledButton(
-              onPressed: widget.isSaving ? null : widget.onSubmit,
-              child: widget.isSaving
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : Text(widget.submitLabel),
-            ),
+          Row(
+            children: [
+              TextButton(
+                onPressed: widget.isSaving ? null : widget.onCancel,
+                child: const Text('Cancel'),
+              ),
+              const Spacer(),
+              FilledButton(
+                onPressed: widget.isSaving ? null : widget.onSubmit,
+                child: widget.isSaving
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Text(widget.submitLabel),
+              ),
+            ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  const _SectionTitle(this.title);
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Text(
+        title.toUpperCase(),
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+          color: colorScheme.primary,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    );
+  }
+}
+
+class _CurrentUrlPreview extends StatefulWidget {
+  const _CurrentUrlPreview({required this.urlController});
+
+  final TextEditingController urlController;
+
+  @override
+  State<_CurrentUrlPreview> createState() => _CurrentUrlPreviewState();
+}
+
+class _CurrentUrlPreviewState extends State<_CurrentUrlPreview> {
+  @override
+  void initState() {
+    super.initState();
+    widget.urlController.addListener(_handleUrlChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant _CurrentUrlPreview oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (widget.urlController != oldWidget.urlController) {
+      oldWidget.urlController.removeListener(_handleUrlChanged);
+      widget.urlController.addListener(_handleUrlChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.urlController.removeListener(_handleUrlChanged);
+    super.dispose();
+  }
+
+  void _handleUrlChanged() {
+    setState(() {});
+  }
+
+  Future<void> _copyUrl() async {
+    final url = widget.urlController.text.trim();
+
+    if (url.isEmpty) {
+      return;
+    }
+
+    try {
+      await Clipboard.setData(ClipboardData(text: url));
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(content: Text('Current URL copied.')));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(content: Text('Unable to copy current URL.')),
+        );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final url = widget.urlController.text.trim();
+    final hasUrl = url.isNotEmpty;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: colorScheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Current URL'.toUpperCase(),
+                    style: textTheme.labelLarge?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Copy current URL',
+                  onPressed: hasUrl ? _copyUrl : null,
+                  icon: const Icon(Icons.content_copy),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.xs),
+            SelectableText(
+              hasUrl ? url : 'Current URL will appear here.',
+              style: textTheme.bodyMedium?.copyWith(
+                color: hasUrl
+                    ? colorScheme.onSurface
+                    : colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

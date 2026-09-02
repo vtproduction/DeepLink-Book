@@ -7,7 +7,6 @@ import '../../../core/database/app_database.dart';
 import '../data/deeplink_repository.dart';
 import '../widgets/deeplink_organization_fields.dart';
 import '../widgets/deeplink_form.dart';
-import '../../environments/providers/environment_providers.dart';
 import '../../projects/providers/project_providers.dart';
 
 class AddDeeplinkScreen extends ConsumerStatefulWidget {
@@ -34,7 +33,7 @@ class _AddDeeplinkScreenState extends ConsumerState<AddDeeplinkScreen> {
     super.initState();
     _urlController.text = widget.initialUrl ?? '';
     _selectedProjectId = ref.read(currentProjectIdProvider);
-    _selectedEnvironmentId = ref.read(currentEnvironmentIdProvider);
+    _selectedEnvironmentId = null;
   }
 
   @override
@@ -48,13 +47,8 @@ class _AddDeeplinkScreenState extends ConsumerState<AddDeeplinkScreen> {
   @override
   Widget build(BuildContext context) {
     final projects = ref.watch(projectsProvider);
-    final environments = _selectedProjectId == null
-        ? const AsyncValue<List<Environment>>.data([])
-        : ref.watch(environmentsForProjectProvider(_selectedProjectId!));
 
     _syncProjectSelection(projects);
-    _syncEnvironmentSelection(environments);
-    final environmentScheme = _selectedEnvironmentScheme(environments);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Add Deeplink')),
@@ -67,24 +61,17 @@ class _AddDeeplinkScreenState extends ConsumerState<AddDeeplinkScreen> {
             urlController: _urlController,
             descriptionController: _descriptionController,
             isSaving: _isSaving,
+            onCancel: _closeScreen,
             onSubmit: _saveDeeplink,
             submitLabel: 'Save',
-            environmentScheme: environmentScheme,
-            organizationFields: DeeplinkOrganizationFields(
+            projectField: DeeplinkOrganizationFields(
               projects: projects,
-              environments: environments,
               selectedProjectId: _selectedProjectId,
-              selectedEnvironmentId: _selectedEnvironmentId,
               enabled: !_isSaving,
               onProjectChanged: (projectId) {
                 setState(() {
                   _selectedProjectId = projectId;
                   _selectedEnvironmentId = null;
-                });
-              },
-              onEnvironmentChanged: (environmentId) {
-                setState(() {
-                  _selectedEnvironmentId = environmentId;
                 });
               },
             ),
@@ -111,6 +98,10 @@ class _AddDeeplinkScreenState extends ConsumerState<AddDeeplinkScreen> {
     final projectId = _selectedProjectId;
 
     if (projectId == null) {
+      setState(() {
+        _isSaving = false;
+      });
+
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Select a project.')));
@@ -148,6 +139,14 @@ class _AddDeeplinkScreenState extends ConsumerState<AddDeeplinkScreen> {
     }
   }
 
+  void _closeScreen() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/');
+    }
+  }
+
   void _syncProjectSelection(AsyncValue<List<Project>> projects) {
     if (_selectedProjectId != null) {
       return;
@@ -175,51 +174,5 @@ class _AddDeeplinkScreenState extends ConsumerState<AddDeeplinkScreen> {
         });
       });
     });
-  }
-
-  void _syncEnvironmentSelection(AsyncValue<List<Environment>> environments) {
-    final selectedEnvironmentId = _selectedEnvironmentId;
-
-    if (selectedEnvironmentId == null) {
-      return;
-    }
-
-    environments.whenData((environments) {
-      final isValid = environments.any(
-        (environment) => environment.id == selectedEnvironmentId,
-      );
-
-      if (isValid) {
-        return;
-      }
-
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted || _selectedEnvironmentId != selectedEnvironmentId) {
-          return;
-        }
-
-        setState(() {
-          _selectedEnvironmentId = null;
-        });
-      });
-    });
-  }
-
-  String? _selectedEnvironmentScheme(
-    AsyncValue<List<Environment>> environments,
-  ) {
-    final selectedEnvironmentId = _selectedEnvironmentId;
-
-    if (selectedEnvironmentId == null) {
-      return null;
-    }
-
-    for (final environment in environments.value ?? const []) {
-      if (environment.id == selectedEnvironmentId) {
-        return environment.scheme;
-      }
-    }
-
-    return null;
   }
 }
