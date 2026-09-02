@@ -7,6 +7,7 @@ import '../features/deeplinks/screens/favorites_screen.dart';
 import '../features/deeplinks/screens/home_screen.dart';
 import '../features/environments/screens/environment_list_screen.dart';
 import '../features/history/screens/history_screen.dart';
+import '../features/projects/screens/project_detail_screen.dart';
 import '../features/projects/screens/projects_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
 
@@ -16,6 +17,7 @@ enum AppRoute {
   editDeeplink(name: 'edit-deeplink', path: '/deeplinks/:id/edit'),
   favorites(name: 'favorites', path: '/favorites'),
   projects(name: 'projects', path: '/projects'),
+  projectDetail(name: 'project-detail', path: '/projects/:projectId'),
   environments(name: 'environments', path: '/projects/:projectId/environments'),
   history(name: 'history', path: '/history'),
   settings(name: 'settings', path: '/settings');
@@ -90,6 +92,17 @@ GoRouter createAppRouter({String? initialLocation}) {
           final deeplinkId = int.tryParse(state.pathParameters['id'] ?? '');
 
           return EditDeeplinkScreen(deeplinkId: deeplinkId);
+        },
+      ),
+      GoRoute(
+        path: AppRoute.projectDetail.path,
+        name: AppRoute.projectDetail.name,
+        builder: (context, state) {
+          final projectId = int.tryParse(
+            state.pathParameters['projectId'] ?? '',
+          );
+
+          return ProjectDetailScreen(projectId: projectId);
         },
       ),
       GoRoute(

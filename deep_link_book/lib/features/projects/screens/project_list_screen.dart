@@ -6,14 +6,15 @@ import '../../../app/router.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../app/widgets/app_root_top_bar.dart';
 import '../../../core/database/app_database.dart';
-import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_empty_state.dart';
+import '../../deeplinks/providers/deeplink_providers.dart';
 import '../../environments/providers/environment_providers.dart';
 import '../../import_export/import_export_file_service.dart';
-import '../../import_export/project_exporter.dart';
 import '../../import_export/project_importer.dart';
-import '../data/project_repository.dart';
 import '../providers/project_providers.dart';
+import '../widgets/new_project_grid_item.dart';
+import '../widgets/project_dialog.dart';
+import '../widgets/project_grid_item.dart';
 
 class ProjectListScreen extends ConsumerStatefulWidget {
   const ProjectListScreen({super.key});
@@ -29,6 +30,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
   @override
   Widget build(BuildContext context) {
     final projects = ref.watch(projectsProvider);
+    final deeplinks = ref.watch(allDeeplinksProvider);
 
     return PopScope(
       canPop: !_isSearching,
@@ -64,6 +66,9 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
             ),
           ),
           data: (projects) {
+            final deeplinkCounts = _buildProjectDeeplinkCounts(
+              deeplinks.value ?? const [],
+            );
             final visibleProjects = _buildVisibleProjects(
               projects,
               _searchQuery,
@@ -71,85 +76,68 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
             final hasSearchQuery = _searchQuery.trim().isNotEmpty;
 
             if (visibleProjects.isEmpty) {
-              return Center(
-                child: AppEmptyState(
-                  icon: hasSearchQuery ? Icons.search_off : Icons.folder_off,
-                  title: hasSearchQuery
-                      ? 'No matching projects'
-                      : 'No projects',
-                  description: hasSearchQuery
-                      ? 'Try a different search term.'
-                      : 'Create a project to organize deeplinks.',
-                ),
-              );
+              if (hasSearchQuery) {
+                return Center(
+                  child: AppEmptyState(
+                    icon: Icons.search_off,
+                    title: 'No projects found for "$_searchQuery"',
+                    description: 'Try a different search term.',
+                  ),
+                );
+              }
             }
 
-            return ListView.separated(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              itemCount: visibleProjects.length,
-              itemBuilder: (context, index) {
-                final project = visibleProjects[index];
+            final itemCount = visibleProjects.length + (hasSearchQuery ? 0 : 1);
 
-                return ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: Text(project.name),
-                  subtitle: Text(project.description ?? 'No description'),
-                  trailing: PopupMenuButton<_ProjectAction>(
-                    tooltip: 'Project actions for ${project.name}',
-                    onSelected: (action) async {
-                      switch (action) {
-                        case _ProjectAction.environments:
-                          context.pushNamed(
-                            AppRoute.environments.name,
-                            pathParameters: {
-                              'projectId': project.id.toString(),
-                            },
-                          );
-                        case _ProjectAction.export:
-                          await _exportProject(context, ref, project);
-                        case _ProjectAction.edit:
-                          await _showProjectDialog(context, ref, project);
-                        case _ProjectAction.delete:
-                          await _deleteProject(
-                            context,
-                            ref,
-                            project,
-                            projects.length,
-                          );
-                      }
-                    },
-                    itemBuilder: (context) => const [
-                      PopupMenuItem(
-                        value: _ProjectAction.environments,
-                        child: Text('Manage environments'),
-                      ),
-                      PopupMenuItem(
-                        value: _ProjectAction.export,
-                        child: Text('Export'),
-                      ),
-                      PopupMenuItem(
-                        value: _ProjectAction.edit,
-                        child: Text('Edit'),
-                      ),
-                      PopupMenuItem(
-                        value: _ProjectAction.delete,
-                        child: Text('Delete'),
-                      ),
-                    ],
+            return GridView.builder(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: AppSpacing.md,
+                mainAxisSpacing: AppSpacing.md,
+                childAspectRatio: 1,
+              ),
+              itemCount: itemCount,
+              itemBuilder: (context, index) {
+                if (!hasSearchQuery && index == 0) {
+                  return NewProjectGridItem(
+                    onTap: () => _showProjectDialog(context),
+                  );
+                }
+
+                final projectIndex = hasSearchQuery ? index : index - 1;
+                final project = visibleProjects[projectIndex];
+
+                return ProjectGridItem(
+                  project: project,
+                  deeplinkCount: deeplinkCounts[project.id] ?? 0,
+                  onTap: () => context.pushNamed(
+                    AppRoute.projectDetail.name,
+                    pathParameters: {'projectId': project.id.toString()},
                   ),
                 );
               },
-              separatorBuilder: (context, index) => const Divider(),
             );
           },
         ),
-        floatingActionButton: FloatingActionButton(
-          tooltip: 'Add project',
-          onPressed: () => _showProjectDialog(context, ref),
-          child: const Icon(Icons.add),
-        ),
       ),
     );
+  }
+
+  Map<int, int> _buildProjectDeeplinkCounts(List<Deeplink> deeplinks) {
+    final counts = <int, int>{};
+
+    for (final deeplink in deeplinks) {
+      final projectId = deeplink.projectId;
+
+      if (projectId == null) {
+        continue;
+      }
+
+      counts.update(projectId, (count) => count + 1, ifAbsent: () => 1);
+    }
+
+    return counts;
   }
 
   List<Project> _buildVisibleProjects(List<Project> projects, String query) {
@@ -188,48 +176,6 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
 
   void _openSettings() {
     context.pushNamed(AppRoute.settings.name);
-  }
-
-  Future<void> _exportProject(
-    BuildContext context,
-    WidgetRef ref,
-    Project project,
-  ) async {
-    try {
-      final exportData = await ref
-          .read(projectExporterProvider)
-          .exportProject(project.id);
-
-      if (!context.mounted) {
-        return;
-      }
-
-      if (exportData == null) {
-        _showSnackBar(context, 'Project no longer exists.');
-        return;
-      }
-
-      final saved = await ref
-          .read(importExportFileServiceProvider)
-          .saveExportFile(
-            fileName: buildProjectExportFileName(project.name),
-            content: exportData.toPrettyJson(),
-          );
-
-      if (!context.mounted) {
-        return;
-      }
-
-      if (saved) {
-        _showSnackBar(context, 'Exported "${project.name}".');
-      }
-    } catch (_) {
-      if (!context.mounted) {
-        return;
-      }
-
-      _showSnackBar(context, 'Unable to export project.');
-    }
   }
 
   Future<void> _importProject(BuildContext context, WidgetRef ref) async {
@@ -278,14 +224,10 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
   }
 
   Future<void> _showProjectDialog(
-    BuildContext context,
-    WidgetRef ref, [
+    BuildContext context, [
     Project? project,
   ]) async {
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (context) => _ProjectDialog(project: project),
-    );
+    final saved = await showProjectDialog(context: context, project: project);
 
     if (saved != true || !context.mounted) {
       return;
@@ -296,61 +238,6 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
         content: Text(project == null ? 'Project created.' : 'Project saved.'),
       ),
     );
-  }
-
-  Future<void> _deleteProject(
-    BuildContext context,
-    WidgetRef ref,
-    Project project,
-    int projectCount,
-  ) async {
-    if (projectCount <= 1) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('At least one project is required.')),
-      );
-      return;
-    }
-
-    final confirmed = await showAppConfirmDialog(
-      context: context,
-      title: 'Delete project?',
-      message: 'Only empty projects can be deleted.',
-      confirmLabel: 'Delete',
-      isDestructive: true,
-    );
-
-    if (!context.mounted || !confirmed) {
-      return;
-    }
-
-    final deleted = await ref
-        .read(projectRepositoryProvider)
-        .deleteProject(project.id);
-
-    if (!context.mounted) {
-      return;
-    }
-
-    if (!deleted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'This project cannot be deleted while it contains deeplinks or environments.',
-          ),
-        ),
-      );
-      return;
-    }
-
-    final currentProjectId = ref.read(currentProjectIdProvider);
-    if (currentProjectId == project.id) {
-      ref.read(currentProjectIdProvider.notifier).select(null);
-      ref.read(currentEnvironmentIdProvider.notifier).select(null);
-    }
-
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Project deleted.')));
   }
 
   void _showSnackBar(BuildContext context, String message) {
@@ -395,134 +282,3 @@ class _ImportPreviewDialog extends StatelessWidget {
     );
   }
 }
-
-class _ProjectDialog extends ConsumerStatefulWidget {
-  const _ProjectDialog({this.project});
-
-  final Project? project;
-
-  @override
-  ConsumerState<_ProjectDialog> createState() => _ProjectDialogState();
-}
-
-class _ProjectDialogState extends ConsumerState<_ProjectDialog> {
-  final _formKey = GlobalKey<FormState>();
-  late final TextEditingController _nameController;
-  late final TextEditingController _descriptionController;
-  var _isSaving = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _nameController = TextEditingController(text: widget.project?.name ?? '');
-    _descriptionController = TextEditingController(
-      text: widget.project?.description ?? '',
-    );
-  }
-
-  @override
-  void dispose() {
-    _nameController.dispose();
-    _descriptionController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.project == null ? 'Add Project' : 'Edit Project'),
-      content: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextFormField(
-              controller: _nameController,
-              decoration: const InputDecoration(labelText: 'Name'),
-              textInputAction: TextInputAction.next,
-              enabled: !_isSaving,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Enter a project name.';
-                }
-
-                return null;
-              },
-            ),
-            const SizedBox(height: AppSpacing.md),
-            TextFormField(
-              controller: _descriptionController,
-              decoration: const InputDecoration(
-                labelText: 'Description',
-                hintText: 'Optional',
-              ),
-              maxLines: 3,
-              enabled: !_isSaving,
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: _isSaving ? null : () => context.pop(false),
-          child: const Text('Cancel'),
-        ),
-        FilledButton(
-          onPressed: _isSaving ? null : _save,
-          child: Text(widget.project == null ? 'Add' : 'Save'),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _save() async {
-    final formState = _formKey.currentState;
-
-    if (formState == null || !formState.validate()) {
-      return;
-    }
-
-    setState(() {
-      _isSaving = true;
-    });
-
-    final name = _nameController.text.trim();
-    final description = _descriptionController.text.trim();
-    final repository = ref.read(projectRepositoryProvider);
-
-    try {
-      final project = widget.project;
-
-      if (project == null) {
-        await repository.createProject(
-          name: name,
-          description: description.isEmpty ? null : description,
-        );
-      } else {
-        await repository.updateProject(
-          id: project.id,
-          name: name,
-          description: description.isEmpty ? null : description,
-        );
-      }
-
-      if (mounted) {
-        context.pop(true);
-      }
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _isSaving = false;
-      });
-
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Unable to save project.')));
-    }
-  }
-}
-
-enum _ProjectAction { environments, export, edit, delete }
