@@ -33,14 +33,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
   final _deletingHistoryIds = <int>{};
   var _searchQuery = '';
   var _isSearching = false;
-  bool _isClearingHistory = false;
 
   @override
   Widget build(BuildContext context) {
     final history = ref.watch(historyProvider);
-    final historyItems = history.asData?.value ?? const <DeeplinkHistory>[];
-    final canClearHistory =
-        history.hasValue && historyItems.isNotEmpty && !_isClearingHistory;
 
     return PopScope(
       canPop: !_isSearching,
@@ -58,19 +54,6 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
           onSearchQueryChanged: _updateSearchQuery,
           onSearchClose: _closeSearch,
           onSettingsPressed: _openSettings,
-          actions: [
-            if (history.hasValue && historyItems.isNotEmpty)
-              IconButton(
-                tooltip: 'Clear history',
-                onPressed: canClearHistory ? _confirmAndClearHistory : null,
-                icon: _isClearingHistory
-                    ? const SizedBox.square(
-                        dimension: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.delete_sweep),
-              ),
-          ],
         ),
         body: history.when(
           loading: () => const Center(child: CircularProgressIndicator()),
@@ -93,7 +76,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                 child: AppEmptyState(
                   icon: hasSearchQuery ? Icons.search_off : Icons.history,
                   title: hasSearchQuery
-                      ? 'No matching history'
+                      ? 'No results for "$_searchQuery"'
                       : 'No history yet',
                   description: hasSearchQuery
                       ? 'Try a different search term.'
@@ -102,22 +85,34 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
               );
             }
 
-            return ListView.separated(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              itemCount: visibleHistoryItems.length,
-              itemBuilder: (context, index) {
-                final historyItem = visibleHistoryItems[index];
+            final groups = _buildHistoryGroups(visibleHistoryItems);
 
-                return HistoryListItem(
-                  history: historyItem,
-                  isOpening: _openingHistoryIds.contains(historyItem.id),
-                  isDeleting: _deletingHistoryIds.contains(historyItem.id),
-                  onOpen: () => _reopenHistoryItem(historyItem),
-                  onCopy: () => _copyDeeplinkUrl(historyItem.url),
-                  onDelete: () => _confirmAndDeleteHistoryItem(historyItem),
-                );
-              },
-              separatorBuilder: (context, index) => const Divider(),
+            return ListView(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              children: [
+                for (final group in groups) ...[
+                  _HistoryGroupHeader(label: group.label),
+                  const SizedBox(height: AppSpacing.xs),
+                  for (var index = 0; index < group.items.length; index++) ...[
+                    HistoryListItem(
+                      history: group.items[index],
+                      isOpening: _openingHistoryIds.contains(
+                        group.items[index].id,
+                      ),
+                      isDeleting: _deletingHistoryIds.contains(
+                        group.items[index].id,
+                      ),
+                      onOpen: () => _reopenHistoryItem(group.items[index]),
+                      onCopy: () => _copyDeeplinkUrl(group.items[index].url),
+                      onDelete: () =>
+                          _confirmAndDeleteHistoryItem(group.items[index]),
+                    ),
+                    if (index != group.items.length - 1)
+                      const Divider(height: 1),
+                  ],
+                  const SizedBox(height: AppSpacing.lg),
+                ],
+              ],
             );
           },
         ),
@@ -139,6 +134,42 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
       return history.name.toLowerCase().contains(normalizedQuery) ||
           history.url.toLowerCase().contains(normalizedQuery);
     }).toList();
+  }
+
+  List<_HistoryDateGroup> _buildHistoryGroups(
+    List<DeeplinkHistory> historyItems,
+  ) {
+    final groups = <_HistoryDateGroup>[];
+
+    for (final history in historyItems) {
+      final label = _historyDateLabel(history.openedAt);
+
+      if (groups.isNotEmpty && groups.last.label == label) {
+        groups.last.items.add(history);
+      } else {
+        groups.add(_HistoryDateGroup(label: label, items: [history]));
+      }
+    }
+
+    return groups;
+  }
+
+  String _historyDateLabel(DateTime dateTime) {
+    final local = dateTime.toLocal();
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final itemDate = DateTime(local.year, local.month, local.day);
+    final difference = today.difference(itemDate).inDays;
+
+    if (difference == 0) {
+      return 'Today';
+    }
+
+    if (difference == 1) {
+      return 'Yesterday';
+    }
+
+    return '${_monthNames[local.month - 1]} ${local.day}, ${local.year}';
   }
 
   void _startSearch() {
@@ -339,48 +370,49 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     }
   }
 
-  Future<void> _confirmAndClearHistory() async {
-    if (_isClearingHistory) {
-      return;
-    }
-
-    final confirmed = await showAppConfirmDialog(
-      context: context,
-      title: 'Clear all history?',
-      message: 'All history entries will be permanently removed.',
-      confirmLabel: 'Clear',
-      cancelLabel: 'Cancel',
-      isDestructive: true,
-    );
-
-    if (!mounted || !confirmed) {
-      return;
-    }
-
-    setState(() {
-      _isClearingHistory = true;
-    });
-
-    try {
-      await ref.read(historyRepositoryProvider).clearHistory();
-    } catch (_) {
-      if (!mounted) {
-        return;
-      }
-
-      _showSnackBar('Unable to clear history.');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isClearingHistory = false;
-        });
-      }
-    }
-  }
-
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  static const _monthNames = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+}
+
+class _HistoryDateGroup {
+  _HistoryDateGroup({required this.label, required this.items});
+
+  final String label;
+  final List<DeeplinkHistory> items;
+}
+
+class _HistoryGroupHeader extends StatelessWidget {
+  const _HistoryGroupHeader({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Text(
+      label,
+      style: Theme.of(
+        context,
+      ).textTheme.labelLarge?.copyWith(color: colorScheme.onSurfaceVariant),
+    );
   }
 }

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../../app/theme/app_spacing.dart';
 import '../../../core/database/app_database.dart';
-import '../../../core/utils/date_time_formatter.dart';
 
 class HistoryListItem extends StatelessWidget {
   const HistoryListItem({
@@ -30,122 +29,116 @@ class HistoryListItem extends StatelessWidget {
         ? colorScheme.primary
         : colorScheme.error;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
         horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
+        vertical: AppSpacing.xs,
       ),
-      child: Column(
+      title: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  history.name,
-                  style: textTheme.titleMedium,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              const SizedBox(width: AppSpacing.sm),
-              _HistoryStatus(isSuccess: history.isSuccess, color: statusColor),
-            ],
+          Icon(
+            history.isSuccess ? Icons.check_circle : Icons.error,
+            color: statusColor,
+            size: 18,
           ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            history.url,
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              history.name.isEmpty ? history.url : history.name,
+              style: textTheme.titleSmall,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          if (!history.isSuccess &&
-              history.errorMessage != null &&
-              history.errorMessage!.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              history.errorMessage!,
-              style: textTheme.bodyMedium?.copyWith(color: colorScheme.error),
-            ),
-          ],
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            DateTimeFormatter.dateTimeWithYear(history.openedAt),
-            style: textTheme.labelMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              FilledButton.icon(
-                onPressed: isOpening ? null : onOpen,
-                icon: isOpening
-                    ? const SizedBox.square(
-                        dimension: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.open_in_new),
-                label: Text(isOpening ? 'Opening' : 'Open'),
-              ),
-              const Spacer(),
-              PopupMenuButton<_HistoryItemAction>(
-                enabled: !isDeleting,
-                tooltip: 'History actions',
-                onSelected: (action) {
-                  switch (action) {
-                    case _HistoryItemAction.copy:
-                      onCopy?.call();
-                    case _HistoryItemAction.delete:
-                      onDelete?.call();
-                  }
-                },
-                itemBuilder: (context) => const [
-                  PopupMenuItem(
-                    value: _HistoryItemAction.copy,
-                    child: Text('Copy'),
-                  ),
-                  PopupMenuItem(
-                    value: _HistoryItemAction.delete,
-                    child: Text('Delete'),
-                  ),
-                ],
-              ),
-            ],
           ),
         ],
       ),
+      subtitle: Padding(
+        padding: const EdgeInsets.only(top: AppSpacing.xs),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              history.url,
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+            if (!history.isSuccess &&
+                history.errorMessage != null &&
+                history.errorMessage!.isNotEmpty) ...[
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                history.errorMessage!,
+                style: textTheme.bodySmall?.copyWith(color: colorScheme.error),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    _timeLabel(history.openedAt),
+                    style: textTheme.labelMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Open ${history.name}',
+                  onPressed: isOpening ? null : onOpen,
+                  icon: isOpening
+                      ? const SizedBox.square(
+                          dimension: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.open_in_new),
+                ),
+                IconButton(
+                  tooltip: 'Copy ${history.name}',
+                  onPressed: onCopy,
+                  icon: const Icon(Icons.content_copy),
+                ),
+                if (isDeleting)
+                  const SizedBox.square(
+                    dimension: 24,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  PopupMenuButton<_HistoryItemAction>(
+                    tooltip: 'More history actions',
+                    onSelected: (action) {
+                      switch (action) {
+                        case _HistoryItemAction.delete:
+                          onDelete?.call();
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: _HistoryItemAction.delete,
+                        child: Text('Delete'),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
+  }
+
+  String _timeLabel(DateTime dateTime) {
+    final local = dateTime.toLocal();
+    final hour = local.hour.toString().padLeft(2, '0');
+    final minute = local.minute.toString().padLeft(2, '0');
+
+    return '$hour:$minute';
   }
 }
 
-enum _HistoryItemAction { copy, delete }
-
-class _HistoryStatus extends StatelessWidget {
-  const _HistoryStatus({required this.isSuccess, required this.color});
-
-  final bool isSuccess;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(
-          isSuccess ? Icons.check_circle : Icons.error,
-          color: color,
-          size: 18,
-        ),
-        const SizedBox(width: AppSpacing.xs),
-        Text(
-          isSuccess ? 'Success' : 'Failed',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(color: color),
-        ),
-      ],
-    );
-  }
-}
+enum _HistoryItemAction { delete }

@@ -45,9 +45,20 @@ class DeeplinkListItem extends StatelessWidget {
         horizontal: AppSpacing.md,
         vertical: AppSpacing.sm,
       ),
+      leading: isFavoriteProcessing
+          ? const SizedBox.square(
+              dimension: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(
+              deeplink.isFavorite ? Icons.star : Icons.star_border,
+              color: deeplink.isFavorite
+                  ? colorScheme.primary
+                  : colorScheme.onSurfaceVariant,
+            ),
       title: Text(
         deeplink.name,
-        style: textTheme.titleMedium,
+        style: textTheme.titleSmall,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
@@ -64,53 +75,40 @@ class DeeplinkListItem extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: AppSpacing.sm),
-          Text(
-            _usageMetadataLabel,
-            style: textTheme.labelMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Tooltip(
-              message: 'Open ${deeplink.name}',
-              child: OutlinedButton.icon(
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _usageMetadataLabel,
+                  style: textTheme.labelMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              IconButton(
+                tooltip: 'Open ${deeplink.name}',
                 onPressed: isOpening ? null : onOpen,
                 icon: isOpening
                     ? const SizedBox.square(
-                        dimension: 16,
+                        dimension: 20,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : const Icon(Icons.open_in_new),
-                label: const Text('Open'),
               ),
-            ),
+              IconButton(
+                tooltip: 'Copy ${deeplink.name}',
+                onPressed: onCopy,
+                icon: const Icon(Icons.content_copy),
+              ),
+            ],
           ),
         ],
       ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (isFavoriteProcessing)
-            const SizedBox.square(
-              dimension: 24,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else
-            IconButton(
-              tooltip: deeplink.isFavorite
-                  ? 'Remove ${deeplink.name} from favorites'
-                  : 'Add ${deeplink.name} to favorites',
-              onPressed: onFavoriteTap,
-              icon: Icon(
-                deeplink.isFavorite ? Icons.star : Icons.star_border,
-                color: deeplink.isFavorite
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant,
-              ),
-            ),
-          const SizedBox(width: AppSpacing.sm),
           if (isProcessing)
             const SizedBox.square(
               dimension: 24,
@@ -123,8 +121,8 @@ class DeeplinkListItem extends StatelessWidget {
                 switch (action) {
                   case _DeeplinkListItemAction.edit:
                     onEdit?.call();
-                  case _DeeplinkListItemAction.copy:
-                    onCopy?.call();
+                  case _DeeplinkListItemAction.favorite:
+                    onFavoriteTap?.call();
                   case _DeeplinkListItemAction.developerTools:
                     onDeveloperTools?.call();
                   case _DeeplinkListItemAction.duplicate:
@@ -139,9 +137,11 @@ class DeeplinkListItem extends StatelessWidget {
                     value: _DeeplinkListItemAction.edit,
                     child: Text('Edit'),
                   ),
-                  const PopupMenuItem(
-                    value: _DeeplinkListItemAction.copy,
-                    child: Text('Copy'),
+                  PopupMenuItem(
+                    value: _DeeplinkListItemAction.favorite,
+                    child: Text(
+                      deeplink.isFavorite ? 'Unfavorite' : 'Favorite',
+                    ),
                   ),
                   const PopupMenuItem(
                     value: _DeeplinkListItemAction.developerTools,
@@ -190,4 +190,10 @@ class DeeplinkListItem extends StatelessWidget {
   }
 }
 
-enum _DeeplinkListItemAction { edit, copy, developerTools, duplicate, delete }
+enum _DeeplinkListItemAction {
+  edit,
+  favorite,
+  developerTools,
+  duplicate,
+  delete,
+}
