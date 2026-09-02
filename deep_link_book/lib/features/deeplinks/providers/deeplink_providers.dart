@@ -20,6 +20,12 @@ final deeplinksProvider = StreamProvider<List<Deeplink>>((ref) {
   );
 });
 
+final allDeeplinksProvider = StreamProvider<List<Deeplink>>((ref) {
+  final repository = ref.watch(deeplinkRepositoryProvider);
+
+  return repository.watchAllDeeplinks();
+});
+
 final deeplinkByIdProvider = FutureProvider.family<Deeplink?, int>((ref, id) {
   final repository = ref.watch(deeplinkRepositoryProvider);
 

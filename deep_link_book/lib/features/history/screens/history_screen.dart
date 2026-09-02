@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../../app/router.dart';
 import '../../../app/theme/app_spacing.dart';
+import '../../../app/widgets/app_root_top_bar.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/deeplink/deeplink_launcher.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
@@ -28,6 +31,8 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
 
   final _openingHistoryIds = <int>{};
   final _deletingHistoryIds = <int>{};
+  var _searchQuery = '';
+  var _isSearching = false;
   bool _isClearingHistory = false;
 
   @override
@@ -37,63 +42,126 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final canClearHistory =
         history.hasValue && historyItems.isNotEmpty && !_isClearingHistory;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('History'),
-        actions: [
-          if (history.hasValue && historyItems.isNotEmpty)
-            IconButton(
-              tooltip: 'Clear history',
-              onPressed: canClearHistory ? _confirmAndClearHistory : null,
-              icon: _isClearingHistory
-                  ? const SizedBox.square(
-                      dimension: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.delete_sweep),
-            ),
-        ],
-      ),
-      body: history.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => const Center(
-          child: AppEmptyState(
-            icon: Icons.error_outline,
-            title: 'Unable to load history.',
-            description: 'Please try again later.',
-          ),
-        ),
-        data: (historyItems) {
-          if (historyItems.isEmpty) {
-            return const Center(
-              child: AppEmptyState(
-                icon: Icons.history,
-                title: 'No history yet',
-                description: 'Opened deeplinks will appear here.',
+    return PopScope(
+      canPop: !_isSearching,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _isSearching) {
+          _closeSearch();
+        }
+      },
+      child: Scaffold(
+        appBar: AppRootTopBar(
+          title: 'History',
+          searchQuery: _searchQuery,
+          isSearching: _isSearching,
+          onSearchPressed: _startSearch,
+          onSearchQueryChanged: _updateSearchQuery,
+          onSearchClose: _closeSearch,
+          onSettingsPressed: _openSettings,
+          actions: [
+            if (history.hasValue && historyItems.isNotEmpty)
+              IconButton(
+                tooltip: 'Clear history',
+                onPressed: canClearHistory ? _confirmAndClearHistory : null,
+                icon: _isClearingHistory
+                    ? const SizedBox.square(
+                        dimension: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.delete_sweep),
               ),
+          ],
+        ),
+        body: history.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stackTrace) => const Center(
+            child: AppEmptyState(
+              icon: Icons.error_outline,
+              title: 'Unable to load history.',
+              description: 'Please try again later.',
+            ),
+          ),
+          data: (historyItems) {
+            final visibleHistoryItems = _buildVisibleHistoryItems(
+              historyItems,
+              _searchQuery,
             );
-          }
+            final hasSearchQuery = _searchQuery.trim().isNotEmpty;
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            itemCount: historyItems.length,
-            itemBuilder: (context, index) {
-              final historyItem = historyItems[index];
-
-              return HistoryListItem(
-                history: historyItem,
-                isOpening: _openingHistoryIds.contains(historyItem.id),
-                isDeleting: _deletingHistoryIds.contains(historyItem.id),
-                onOpen: () => _reopenHistoryItem(historyItem),
-                onCopy: () => _copyDeeplinkUrl(historyItem.url),
-                onDelete: () => _confirmAndDeleteHistoryItem(historyItem),
+            if (visibleHistoryItems.isEmpty) {
+              return Center(
+                child: AppEmptyState(
+                  icon: hasSearchQuery ? Icons.search_off : Icons.history,
+                  title: hasSearchQuery
+                      ? 'No matching history'
+                      : 'No history yet',
+                  description: hasSearchQuery
+                      ? 'Try a different search term.'
+                      : 'Opened deeplinks will appear here.',
+                ),
               );
-            },
-            separatorBuilder: (context, index) => const Divider(),
-          );
-        },
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              itemCount: visibleHistoryItems.length,
+              itemBuilder: (context, index) {
+                final historyItem = visibleHistoryItems[index];
+
+                return HistoryListItem(
+                  history: historyItem,
+                  isOpening: _openingHistoryIds.contains(historyItem.id),
+                  isDeleting: _deletingHistoryIds.contains(historyItem.id),
+                  onOpen: () => _reopenHistoryItem(historyItem),
+                  onCopy: () => _copyDeeplinkUrl(historyItem.url),
+                  onDelete: () => _confirmAndDeleteHistoryItem(historyItem),
+                );
+              },
+              separatorBuilder: (context, index) => const Divider(),
+            );
+          },
+        ),
       ),
     );
+  }
+
+  List<DeeplinkHistory> _buildVisibleHistoryItems(
+    List<DeeplinkHistory> historyItems,
+    String query,
+  ) {
+    final normalizedQuery = query.trim().toLowerCase();
+
+    if (normalizedQuery.isEmpty) {
+      return historyItems;
+    }
+
+    return historyItems.where((history) {
+      return history.name.toLowerCase().contains(normalizedQuery) ||
+          history.url.toLowerCase().contains(normalizedQuery);
+    }).toList();
+  }
+
+  void _startSearch() {
+    setState(() {
+      _isSearching = true;
+    });
+  }
+
+  void _updateSearchQuery(String query) {
+    setState(() {
+      _searchQuery = query;
+    });
+  }
+
+  void _closeSearch() {
+    setState(() {
+      _searchQuery = '';
+      _isSearching = false;
+    });
+  }
+
+  void _openSettings() {
+    context.pushNamed(AppRoute.settings.name);
   }
 
   Future<void> _copyDeeplinkUrl(String url) async {

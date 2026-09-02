@@ -3,16 +3,18 @@ import 'package:go_router/go_router.dart';
 import 'widgets/app_shell.dart';
 import '../features/deeplinks/screens/add_deeplink_screen.dart';
 import '../features/deeplinks/screens/edit_deeplink_screen.dart';
+import '../features/deeplinks/screens/favorites_screen.dart';
 import '../features/deeplinks/screens/home_screen.dart';
 import '../features/environments/screens/environment_list_screen.dart';
 import '../features/history/screens/history_screen.dart';
-import '../features/projects/screens/project_list_screen.dart';
+import '../features/projects/screens/projects_screen.dart';
 import '../features/settings/screens/settings_screen.dart';
 
 enum AppRoute {
   home(name: 'home', path: '/'),
   addDeeplink(name: 'add-deeplink', path: '/deeplinks/new'),
   editDeeplink(name: 'edit-deeplink', path: '/deeplinks/:id/edit'),
+  favorites(name: 'favorites', path: '/favorites'),
   projects(name: 'projects', path: '/projects'),
   environments(name: 'environments', path: '/projects/:projectId/environments'),
   history(name: 'history', path: '/history'),
@@ -28,25 +30,46 @@ GoRouter createAppRouter({String? initialLocation}) {
   return GoRouter(
     initialLocation: initialLocation ?? AppRoute.home.path,
     routes: [
-      ShellRoute(
-        builder: (context, state, child) {
-          return AppShell(currentPath: state.uri.path, child: child);
+      StatefulShellRoute.indexedStack(
+        builder: (context, state, navigationShell) {
+          return AppShell(navigationShell: navigationShell);
         },
-        routes: [
-          GoRoute(
-            path: AppRoute.home.path,
-            name: AppRoute.home.name,
-            builder: (context, state) => const HomeScreen(),
+        branches: [
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoute.home.path,
+                name: AppRoute.home.name,
+                builder: (context, state) => const HomeScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoute.history.path,
-            name: AppRoute.history.name,
-            builder: (context, state) => const HistoryScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoute.history.path,
+                name: AppRoute.history.name,
+                builder: (context, state) => const HistoryScreen(),
+              ),
+            ],
           ),
-          GoRoute(
-            path: AppRoute.settings.path,
-            name: AppRoute.settings.name,
-            builder: (context, state) => const SettingsScreen(),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoute.favorites.path,
+                name: AppRoute.favorites.name,
+                builder: (context, state) => const FavoritesScreen(),
+              ),
+            ],
+          ),
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: AppRoute.projects.path,
+                name: AppRoute.projects.name,
+                builder: (context, state) => const ProjectsScreen(),
+              ),
+            ],
           ),
         ],
       ),
@@ -65,11 +88,6 @@ GoRouter createAppRouter({String? initialLocation}) {
         },
       ),
       GoRoute(
-        path: AppRoute.projects.path,
-        name: AppRoute.projects.name,
-        builder: (context, state) => const ProjectListScreen(),
-      ),
-      GoRoute(
         path: AppRoute.environments.path,
         name: AppRoute.environments.name,
         builder: (context, state) {
@@ -79,6 +97,11 @@ GoRouter createAppRouter({String? initialLocation}) {
 
           return EnvironmentListScreen(projectId: projectId);
         },
+      ),
+      GoRoute(
+        path: AppRoute.settings.path,
+        name: AppRoute.settings.name,
+        builder: (context, state) => const SettingsScreen(),
       ),
     ],
   );

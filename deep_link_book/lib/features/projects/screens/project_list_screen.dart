@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
 import '../../../app/theme/app_spacing.dart';
+import '../../../app/widgets/app_root_top_bar.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_empty_state.dart';
@@ -14,107 +15,179 @@ import '../../import_export/project_importer.dart';
 import '../data/project_repository.dart';
 import '../providers/project_providers.dart';
 
-class ProjectListScreen extends ConsumerWidget {
+class ProjectListScreen extends ConsumerStatefulWidget {
   const ProjectListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProjectListScreen> createState() => _ProjectListScreenState();
+}
+
+class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
+  var _searchQuery = '';
+  var _isSearching = false;
+
+  @override
+  Widget build(BuildContext context) {
     final projects = ref.watch(projectsProvider);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Projects'),
-        actions: [
-          IconButton(
-            tooltip: 'Import project',
-            onPressed: () => _importProject(context, ref),
-            icon: const Icon(Icons.upload_file),
-          ),
-        ],
-      ),
-      body: projects.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => const Center(
-          child: AppEmptyState(
-            icon: Icons.error_outline,
-            title: 'Unable to load projects',
-            description: 'Please try again later.',
-          ),
+    return PopScope(
+      canPop: !_isSearching,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _isSearching) {
+          _closeSearch();
+        }
+      },
+      child: Scaffold(
+        appBar: AppRootTopBar(
+          title: 'Projects',
+          searchQuery: _searchQuery,
+          isSearching: _isSearching,
+          onSearchPressed: _startSearch,
+          onSearchQueryChanged: _updateSearchQuery,
+          onSearchClose: _closeSearch,
+          onSettingsPressed: _openSettings,
+          actions: [
+            IconButton(
+              tooltip: 'Import project',
+              onPressed: () => _importProject(context, ref),
+              icon: const Icon(Icons.upload_file),
+            ),
+          ],
         ),
-        data: (projects) {
-          if (projects.isEmpty) {
-            return const Center(
-              child: AppEmptyState(
-                icon: Icons.folder_off,
-                title: 'No projects',
-                description: 'Create a project to organize deeplinks.',
-              ),
+        body: projects.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stackTrace) => const Center(
+            child: AppEmptyState(
+              icon: Icons.error_outline,
+              title: 'Unable to load projects',
+              description: 'Please try again later.',
+            ),
+          ),
+          data: (projects) {
+            final visibleProjects = _buildVisibleProjects(
+              projects,
+              _searchQuery,
             );
-          }
+            final hasSearchQuery = _searchQuery.trim().isNotEmpty;
 
-          return ListView.separated(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            itemCount: projects.length,
-            itemBuilder: (context, index) {
-              final project = projects[index];
-
-              return ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(project.name),
-                subtitle: Text(project.description ?? 'No description'),
-                trailing: PopupMenuButton<_ProjectAction>(
-                  tooltip: 'Project actions for ${project.name}',
-                  onSelected: (action) async {
-                    switch (action) {
-                      case _ProjectAction.environments:
-                        context.pushNamed(
-                          AppRoute.environments.name,
-                          pathParameters: {'projectId': project.id.toString()},
-                        );
-                      case _ProjectAction.export:
-                        await _exportProject(context, ref, project);
-                      case _ProjectAction.edit:
-                        await _showProjectDialog(context, ref, project);
-                      case _ProjectAction.delete:
-                        await _deleteProject(
-                          context,
-                          ref,
-                          project,
-                          projects.length,
-                        );
-                    }
-                  },
-                  itemBuilder: (context) => const [
-                    PopupMenuItem(
-                      value: _ProjectAction.environments,
-                      child: Text('Manage environments'),
-                    ),
-                    PopupMenuItem(
-                      value: _ProjectAction.export,
-                      child: Text('Export'),
-                    ),
-                    PopupMenuItem(
-                      value: _ProjectAction.edit,
-                      child: Text('Edit'),
-                    ),
-                    PopupMenuItem(
-                      value: _ProjectAction.delete,
-                      child: Text('Delete'),
-                    ),
-                  ],
+            if (visibleProjects.isEmpty) {
+              return Center(
+                child: AppEmptyState(
+                  icon: hasSearchQuery ? Icons.search_off : Icons.folder_off,
+                  title: hasSearchQuery
+                      ? 'No matching projects'
+                      : 'No projects',
+                  description: hasSearchQuery
+                      ? 'Try a different search term.'
+                      : 'Create a project to organize deeplinks.',
                 ),
               );
-            },
-            separatorBuilder: (context, index) => const Divider(),
-          );
-        },
-      ),
-      floatingActionButton: FloatingActionButton(
-        tooltip: 'Add project',
-        onPressed: () => _showProjectDialog(context, ref),
-        child: const Icon(Icons.add),
+            }
+
+            return ListView.separated(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              itemCount: visibleProjects.length,
+              itemBuilder: (context, index) {
+                final project = visibleProjects[index];
+
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(project.name),
+                  subtitle: Text(project.description ?? 'No description'),
+                  trailing: PopupMenuButton<_ProjectAction>(
+                    tooltip: 'Project actions for ${project.name}',
+                    onSelected: (action) async {
+                      switch (action) {
+                        case _ProjectAction.environments:
+                          context.pushNamed(
+                            AppRoute.environments.name,
+                            pathParameters: {
+                              'projectId': project.id.toString(),
+                            },
+                          );
+                        case _ProjectAction.export:
+                          await _exportProject(context, ref, project);
+                        case _ProjectAction.edit:
+                          await _showProjectDialog(context, ref, project);
+                        case _ProjectAction.delete:
+                          await _deleteProject(
+                            context,
+                            ref,
+                            project,
+                            projects.length,
+                          );
+                      }
+                    },
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: _ProjectAction.environments,
+                        child: Text('Manage environments'),
+                      ),
+                      PopupMenuItem(
+                        value: _ProjectAction.export,
+                        child: Text('Export'),
+                      ),
+                      PopupMenuItem(
+                        value: _ProjectAction.edit,
+                        child: Text('Edit'),
+                      ),
+                      PopupMenuItem(
+                        value: _ProjectAction.delete,
+                        child: Text('Delete'),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              separatorBuilder: (context, index) => const Divider(),
+            );
+          },
+        ),
+        floatingActionButton: FloatingActionButton(
+          tooltip: 'Add project',
+          onPressed: () => _showProjectDialog(context, ref),
+          child: const Icon(Icons.add),
+        ),
       ),
     );
+  }
+
+  List<Project> _buildVisibleProjects(List<Project> projects, String query) {
+    final normalizedQuery = query.trim().toLowerCase();
+
+    if (normalizedQuery.isEmpty) {
+      return projects;
+    }
+
+    return projects.where((project) {
+      final description = project.description;
+
+      return project.name.toLowerCase().contains(normalizedQuery) ||
+          (description?.toLowerCase().contains(normalizedQuery) ?? false);
+    }).toList();
+  }
+
+  void _startSearch() {
+    setState(() {
+      _isSearching = true;
+    });
+  }
+
+  void _updateSearchQuery(String query) {
+    setState(() {
+      _searchQuery = query;
+    });
+  }
+
+  void _closeSearch() {
+    setState(() {
+      _searchQuery = '';
+      _isSearching = false;
+    });
+  }
+
+  void _openSettings() {
+    context.pushNamed(AppRoute.settings.name);
   }
 
   Future<void> _exportProject(

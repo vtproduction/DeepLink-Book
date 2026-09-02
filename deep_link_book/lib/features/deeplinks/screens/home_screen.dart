@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
 import '../../../app/theme/app_spacing.dart';
+import '../../../app/widgets/app_root_top_bar.dart';
 import '../../../core/deeplink/deeplink_launcher.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
@@ -19,7 +20,14 @@ import '../../history/data/history_repository.dart';
 import '../../projects/providers/project_providers.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({
+    super.key,
+    this.title = 'Home',
+    this.favoritesOnly = false,
+  });
+
+  final String title;
+  final bool favoritesOnly;
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -33,213 +41,161 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   int? _processingDeeplinkId;
   final _processingFavoriteIds = <int>{};
   final _openingDeeplinkIds = <int>{};
-  final _searchController = TextEditingController();
-  var _favoritesOnly = false;
+  var _searchQuery = '';
+  var _isSearching = false;
   var _sortOption = DeeplinkSortOption.recentlyUpdated;
 
   @override
-  void initState() {
-    super.initState();
-    _searchController.addListener(_onSearchChanged);
-  }
-
-  @override
-  void dispose() {
-    _searchController
-      ..removeListener(_onSearchChanged)
-      ..dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final deeplinks = ref.watch(deeplinksProvider);
+    final deeplinks = ref.watch(
+      widget.favoritesOnly ? allDeeplinksProvider : deeplinksProvider,
+    );
     final projects = ref.watch(projectsProvider);
     final environments = ref.watch(environmentsForCurrentProjectProvider);
 
     _syncCurrentProject(projects);
     _syncCurrentEnvironment(environments);
 
-    return Scaffold(
-      appBar: AppBar(title: const Text('Home')),
-      body: Column(
-        children: [
-          _ProjectEnvironmentControls(projects: projects),
-          Expanded(
-            child: deeplinks.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (error, stackTrace) => Center(
-                child: AppEmptyState(
-                  icon: Icons.error_outline,
-                  title: 'Unable to load deeplinks',
-                  description: 'Please try again.',
-                  action: FilledButton.icon(
-                    onPressed: () => ref.invalidate(deeplinksProvider),
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Retry'),
-                  ),
+    return PopScope(
+      canPop: !_isSearching,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _isSearching) {
+          _closeSearch();
+        }
+      },
+      child: Scaffold(
+        appBar: AppRootTopBar(
+          title: widget.title,
+          searchQuery: _searchQuery,
+          isSearching: _isSearching,
+          onSearchPressed: _startSearch,
+          onSearchQueryChanged: _updateSearchQuery,
+          onSearchClose: _closeSearch,
+          onSettingsPressed: _openSettings,
+        ),
+        body: deeplinks.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stackTrace) => Center(
+            child: AppEmptyState(
+              icon: Icons.error_outline,
+              title: 'Unable to load deeplinks',
+              description: 'Please try again.',
+              action: FilledButton.icon(
+                onPressed: () => ref.invalidate(
+                  widget.favoritesOnly
+                      ? allDeeplinksProvider
+                      : deeplinksProvider,
                 ),
+                icon: const Icon(Icons.refresh),
+                label: const Text('Retry'),
               ),
-              data: (deeplinks) {
-                final visibleDeeplinks = _buildVisibleDeeplinks(
-                  deeplinks,
-                  _searchController.text,
-                  favoritesOnly: _favoritesOnly,
-                  sortOption: _sortOption,
-                );
-                final hasSearchQuery = _searchController.text.trim().isNotEmpty;
-
-                return Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.md,
-                        AppSpacing.md,
-                        AppSpacing.md,
-                        AppSpacing.sm,
-                      ),
-                      child: TextField(
-                        controller: _searchController,
-                        textInputAction: TextInputAction.search,
-                        decoration: InputDecoration(
-                          hintText: 'Search deeplinks',
-                          prefixIcon: const Icon(Icons.search),
-                          suffixIcon: _searchController.text.isEmpty
-                              ? null
-                              : IconButton(
-                                  tooltip: 'Clear search',
-                                  onPressed: _searchController.clear,
-                                  icon: const Icon(Icons.clear),
-                                ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.md,
-                        0,
-                        AppSpacing.md,
-                        AppSpacing.sm,
-                      ),
-                      child: Wrap(
-                        spacing: AppSpacing.sm,
-                        runSpacing: AppSpacing.sm,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          FilterChip(
-                            label: const Text('All'),
-                            selected: !_favoritesOnly,
-                            onSelected: (selected) {
-                              if (!selected) {
-                                return;
-                              }
-
-                              setState(() {
-                                _favoritesOnly = false;
-                              });
-                            },
-                          ),
-                          FilterChip(
-                            label: const Text('Favorites'),
-                            avatar: const Icon(Icons.star),
-                            selected: _favoritesOnly,
-                            onSelected: (selected) {
-                              setState(() {
-                                _favoritesOnly = selected;
-                              });
-                            },
-                          ),
-                          PopupMenuButton<DeeplinkSortOption>(
-                            tooltip: 'Sort deeplinks',
-                            initialValue: _sortOption,
-                            onSelected: (sortOption) {
-                              setState(() {
-                                _sortOption = sortOption;
-                              });
-                            },
-                            itemBuilder: (context) {
-                              return DeeplinkSortOption.values.map((
-                                sortOption,
-                              ) {
-                                return PopupMenuItem(
-                                  value: sortOption,
-                                  child: Text(sortOption.label),
-                                );
-                              }).toList();
-                            },
-                            child: InputChip(
-                              avatar: const Icon(Icons.sort),
-                              label: Text(_sortOption.label),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (visibleDeeplinks.isEmpty)
-                      Expanded(
-                        child: Center(
-                          child: _emptyStateForVisibleDeeplinks(
-                            hasSearchQuery: hasSearchQuery,
-                            hasSourceDeeplinks: deeplinks.isNotEmpty,
-                          ),
-                        ),
-                      )
-                    else
-                      Expanded(
-                        child: ListView.separated(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppSpacing.md,
-                            AppSpacing.sm,
-                            AppSpacing.md,
-                            AppSpacing.md,
-                          ),
-                          itemCount: visibleDeeplinks.length,
-                          itemBuilder: (context, index) {
-                            final deeplink = visibleDeeplinks[index];
-
-                            return DeeplinkListItem(
-                              deeplink: deeplink,
-                              isProcessing:
-                                  _processingDeeplinkId == deeplink.id,
-                              isFavoriteProcessing: _processingFavoriteIds
-                                  .contains(deeplink.id),
-                              isOpening: _openingDeeplinkIds.contains(
-                                deeplink.id,
-                              ),
-                              onTap: () => _openEditScreen(deeplink),
-                              onOpen: () => _openDeeplink(deeplink),
-                              onFavoriteTap: () => _toggleFavorite(deeplink),
-                              onEdit: () => _openEditScreen(deeplink),
-                              onCopy: () => _copyDeeplinkUrl(deeplink.url),
-                              onDeveloperTools: () =>
-                                  _showDeveloperTools(deeplink.url),
-                              onDuplicate: () => _duplicateDeeplink(deeplink),
-                              onDelete: () =>
-                                  _confirmAndDeleteDeeplink(deeplink),
-                            );
-                          },
-                          separatorBuilder: (context, index) => const Divider(),
-                        ),
-                      ),
-                  ],
-                );
-              },
             ),
           ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        tooltip: 'Add deeplink',
-        onPressed: () => context.pushNamed(AppRoute.addDeeplink.name),
-        child: const Icon(Icons.add),
+          data: (deeplinks) {
+            final visibleDeeplinks = _buildVisibleDeeplinks(
+              deeplinks,
+              _searchQuery,
+              favoritesOnly: widget.favoritesOnly,
+              sortOption: _sortOption,
+            );
+            final hasSearchQuery = _searchQuery.trim().isNotEmpty;
+
+            return Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.sm,
+                  ),
+                  child: Wrap(
+                    spacing: AppSpacing.sm,
+                    runSpacing: AppSpacing.sm,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      PopupMenuButton<DeeplinkSortOption>(
+                        tooltip: 'Sort deeplinks',
+                        initialValue: _sortOption,
+                        onSelected: (sortOption) {
+                          setState(() {
+                            _sortOption = sortOption;
+                          });
+                        },
+                        itemBuilder: (context) {
+                          return DeeplinkSortOption.values.map((sortOption) {
+                            return PopupMenuItem(
+                              value: sortOption,
+                              child: Text(sortOption.label),
+                            );
+                          }).toList();
+                        },
+                        child: InputChip(
+                          avatar: const Icon(Icons.sort),
+                          label: Text(_sortOption.label),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (visibleDeeplinks.isEmpty)
+                  Expanded(
+                    child: Center(
+                      child: _emptyStateForVisibleDeeplinks(
+                        hasSearchQuery: hasSearchQuery,
+                      ),
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(
+                        AppSpacing.md,
+                        AppSpacing.sm,
+                        AppSpacing.md,
+                        AppSpacing.md,
+                      ),
+                      itemCount: visibleDeeplinks.length,
+                      itemBuilder: (context, index) {
+                        final deeplink = visibleDeeplinks[index];
+
+                        return DeeplinkListItem(
+                          deeplink: deeplink,
+                          isProcessing: _processingDeeplinkId == deeplink.id,
+                          isFavoriteProcessing: _processingFavoriteIds.contains(
+                            deeplink.id,
+                          ),
+                          isOpening: _openingDeeplinkIds.contains(deeplink.id),
+                          onTap: () => _openEditScreen(deeplink),
+                          onOpen: () => _openDeeplink(deeplink),
+                          onFavoriteTap: () => _toggleFavorite(deeplink),
+                          onEdit: () => _openEditScreen(deeplink),
+                          onCopy: () => _copyDeeplinkUrl(deeplink.url),
+                          onDeveloperTools: () =>
+                              _showDeveloperTools(deeplink.url),
+                          onDuplicate: () => _duplicateDeeplink(deeplink),
+                          onDelete: () => _confirmAndDeleteDeeplink(deeplink),
+                        );
+                      },
+                      separatorBuilder: (context, index) => const Divider(),
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+        floatingActionButton: widget.favoritesOnly
+            ? null
+            : FloatingActionButton(
+                tooltip: 'Add deeplink',
+                onPressed: () => context.pushNamed(AppRoute.addDeeplink.name),
+                child: const Icon(Icons.add),
+              ),
       ),
     );
   }
 
-  Widget _emptyStateForVisibleDeeplinks({
-    required bool hasSearchQuery,
-    required bool hasSourceDeeplinks,
-  }) {
+  Widget _emptyStateForVisibleDeeplinks({required bool hasSearchQuery}) {
     if (hasSearchQuery) {
       return const AppEmptyState(
         icon: Icons.search_off,
@@ -248,7 +204,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       );
     }
 
-    if (_favoritesOnly && hasSourceDeeplinks) {
+    if (widget.favoritesOnly) {
       return const AppEmptyState(
         icon: Icons.star_border,
         title: 'No favorite deeplinks',
@@ -259,7 +215,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return const AppEmptyState(
       icon: Icons.link_off,
       title: 'No deeplinks yet',
-      description: 'Create a deeplink for this project or environment.',
+      description: 'Create a deeplink to get started.',
     );
   }
 
@@ -323,8 +279,27 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     });
   }
 
-  void _onSearchChanged() {
-    setState(() {});
+  void _startSearch() {
+    setState(() {
+      _isSearching = true;
+    });
+  }
+
+  void _updateSearchQuery(String query) {
+    setState(() {
+      _searchQuery = query;
+    });
+  }
+
+  void _closeSearch() {
+    setState(() {
+      _searchQuery = '';
+      _isSearching = false;
+    });
+  }
+
+  void _openSettings() {
+    context.pushNamed(AppRoute.settings.name);
   }
 
   List<Deeplink> _buildVisibleDeeplinks(
@@ -694,133 +669,4 @@ enum DeeplinkSortOption {
   const DeeplinkSortOption(this.label);
 
   final String label;
-}
-
-class _ProjectEnvironmentControls extends ConsumerWidget {
-  const _ProjectEnvironmentControls({required this.projects});
-
-  final AsyncValue<List<Project>> projects;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final textTheme = Theme.of(context).textTheme;
-    final environments = ref.watch(environmentsForCurrentProjectProvider);
-    final currentProjectId = ref.watch(currentProjectIdProvider);
-    final currentEnvironmentId = ref.watch(currentEnvironmentIdProvider);
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.md,
-        0,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text('Project', style: textTheme.labelLarge),
-          const SizedBox(height: AppSpacing.xs),
-          Row(
-            children: [
-              Expanded(
-                child: projects.when(
-                  loading: () => const LinearProgressIndicator(),
-                  error: (error, stackTrace) =>
-                      const Text('Unable to load projects'),
-                  data: (projects) {
-                    if (projects.isEmpty) {
-                      return const Text('No projects available');
-                    }
-
-                    return DropdownButtonFormField<int>(
-                      key: ValueKey('project-$currentProjectId'),
-                      initialValue: currentProjectId,
-                      isExpanded: true,
-                      items: projects.map((project) {
-                        return DropdownMenuItem(
-                          value: project.id,
-                          child: Text(
-                            project.name,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      }).toList(),
-                      onChanged: (projectId) {
-                        ref
-                            .read(currentProjectIdProvider.notifier)
-                            .select(projectId);
-                        ref
-                            .read(currentEnvironmentIdProvider.notifier)
-                            .select(null);
-                      },
-                    );
-                  },
-                ),
-              ),
-              IconButton(
-                tooltip: 'Manage projects',
-                onPressed: () => context.pushNamed(AppRoute.projects.name),
-                icon: const Icon(Icons.settings),
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.md),
-          Text('Environment', style: textTheme.labelLarge),
-          const SizedBox(height: AppSpacing.xs),
-          Row(
-            children: [
-              Expanded(
-                child: environments.when(
-                  loading: () => const LinearProgressIndicator(),
-                  error: (error, stackTrace) =>
-                      const Text('Unable to load environments'),
-                  data: (environments) {
-                    final values = <DropdownMenuItem<int?>>[
-                      const DropdownMenuItem(
-                        value: null,
-                        child: Text('All environments'),
-                      ),
-                      ...environments.map((environment) {
-                        return DropdownMenuItem<int?>(
-                          value: environment.id,
-                          child: Text(
-                            environment.name,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        );
-                      }),
-                    ];
-
-                    return DropdownButtonFormField<int?>(
-                      key: ValueKey('environment-$currentEnvironmentId'),
-                      initialValue: currentEnvironmentId,
-                      isExpanded: true,
-                      items: values,
-                      onChanged: (environmentId) {
-                        ref
-                            .read(currentEnvironmentIdProvider.notifier)
-                            .select(environmentId);
-                      },
-                    );
-                  },
-                ),
-              ),
-              IconButton(
-                tooltip: 'Manage environments',
-                onPressed: currentProjectId == null
-                    ? null
-                    : () => context.pushNamed(
-                        AppRoute.environments.name,
-                        pathParameters: {
-                          'projectId': currentProjectId.toString(),
-                        },
-                      ),
-                icon: const Icon(Icons.tune),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
 }

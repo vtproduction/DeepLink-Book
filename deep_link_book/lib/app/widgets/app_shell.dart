@@ -1,29 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../router.dart';
-
 class AppShell extends StatelessWidget {
-  const AppShell({super.key, required this.currentPath, required this.child});
+  const AppShell({super.key, required this.navigationShell});
 
-  final String currentPath;
-  final Widget child;
+  final StatefulNavigationShell navigationShell;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: child,
+      body: navigationShell,
       bottomNavigationBar: NavigationBar(
-        selectedIndex: _selectedIndex,
+        selectedIndex: navigationShell.currentIndex,
         onDestinationSelected: (index) {
-          switch (index) {
-            case 0:
-              context.goNamed(AppRoute.home.name);
-            case 1:
-              context.goNamed(AppRoute.history.name);
-            case 2:
-              context.goNamed(AppRoute.settings.name);
-          }
+          navigationShell.goBranch(
+            index,
+            initialLocation: index == navigationShell.currentIndex,
+          );
         },
         destinations: const [
           NavigationDestination(
@@ -37,24 +30,17 @@ class AppShell extends StatelessWidget {
             label: 'History',
           ),
           NavigationDestination(
-            icon: Icon(Icons.settings_outlined),
-            selectedIcon: Icon(Icons.settings),
-            label: 'Settings',
+            icon: Icon(Icons.favorite_border),
+            selectedIcon: Icon(Icons.favorite),
+            label: 'Favorites',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.folder_outlined),
+            selectedIcon: Icon(Icons.folder),
+            label: 'Projects',
           ),
         ],
       ),
     );
-  }
-
-  int get _selectedIndex {
-    if (currentPath == AppRoute.history.path) {
-      return 1;
-    }
-
-    if (currentPath == AppRoute.settings.path) {
-      return 2;
-    }
-
-    return 0;
   }
 }
