@@ -38,6 +38,10 @@ class HistoryRepository {
     return _orderedHistoryQuery().watch();
   }
 
+  Stream<List<DeeplinkHistory>> watchRecentHistory({required int limit}) {
+    return (_orderedHistoryQuery()..limit(limit)).watch();
+  }
+
   Future<bool> deleteHistory(int id) async {
     final deletedRows = await (_database.delete(
       _database.deeplinkHistories,

@@ -8,3 +8,11 @@ final historyProvider = StreamProvider<List<DeeplinkHistory>>((ref) {
 
   return repository.watchAllHistory();
 });
+
+final recentHistoryProvider = StreamProvider.family<List<DeeplinkHistory>, int>(
+  (ref, limit) {
+    final repository = ref.watch(historyRepositoryProvider);
+
+    return repository.watchRecentHistory(limit: limit);
+  },
+);

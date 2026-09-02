@@ -11,7 +11,9 @@ import '../../environments/providers/environment_providers.dart';
 import '../../projects/providers/project_providers.dart';
 
 class AddDeeplinkScreen extends ConsumerStatefulWidget {
-  const AddDeeplinkScreen({super.key});
+  const AddDeeplinkScreen({super.key, this.initialUrl});
+
+  final String? initialUrl;
 
   @override
   ConsumerState<AddDeeplinkScreen> createState() => _AddDeeplinkScreenState();
@@ -30,6 +32,7 @@ class _AddDeeplinkScreenState extends ConsumerState<AddDeeplinkScreen> {
   @override
   void initState() {
     super.initState();
+    _urlController.text = widget.initialUrl ?? '';
     _selectedProjectId = ref.read(currentProjectIdProvider);
     _selectedEnvironmentId = ref.read(currentEnvironmentIdProvider);
   }

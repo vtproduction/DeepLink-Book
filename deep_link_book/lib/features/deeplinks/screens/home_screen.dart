@@ -4,19 +4,24 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
+import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../app/widgets/app_root_top_bar.dart';
 import '../../../core/deeplink/deeplink_launcher.dart';
 import '../../../core/database/app_database.dart';
+import '../../../core/utils/date_time_formatter.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../data/deeplink_repository.dart';
 import '../developer_tools/developer_tools_view.dart';
 import '../providers/deeplink_providers.dart';
 import '../validation/deeplink_validator.dart';
+import '../widgets/dashboard_section.dart';
 import '../widgets/deeplink_list_item.dart';
+import '../widgets/quick_link_card.dart';
 import '../../environments/providers/environment_providers.dart';
 import '../../history/data/history_repository.dart';
+import '../../history/providers/history_providers.dart';
 import '../../projects/providers/project_providers.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -33,25 +38,53 @@ class HomeScreen extends ConsumerStatefulWidget {
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends ConsumerState<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen>
+    with WidgetsBindingObserver {
   static const _invalidHistoryMessage = 'Invalid deeplink URL.';
   static const _noHandlerMessage = 'No app can open this deeplink.';
   static const _unableToOpenMessage = 'Unable to open deeplink.';
+  static const _clipboardHistoryName = 'Clipboard Quick Link';
 
   int? _processingDeeplinkId;
   final _processingFavoriteIds = <int>{};
   final _openingDeeplinkIds = <int>{};
+  final _openingHistoryIds = <int>{};
   var _searchQuery = '';
   var _isSearching = false;
   var _sortOption = DeeplinkSortOption.recentlyUpdated;
+  String? _clipboardQuickLinkUrl;
+  var _isOpeningClipboardQuickLink = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !widget.favoritesOnly) {
+        _refreshClipboardQuickLink();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !widget.favoritesOnly) {
+      _refreshClipboardQuickLink();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final deeplinks = ref.watch(
-      widget.favoritesOnly ? allDeeplinksProvider : deeplinksProvider,
-    );
+    final deeplinks = ref.watch(allDeeplinksProvider);
     final projects = ref.watch(projectsProvider);
     final environments = ref.watch(environmentsForCurrentProjectProvider);
+    final recentHistory = ref.watch(recentHistoryProvider(3));
 
     _syncCurrentProject(projects);
     _syncCurrentEnvironment(environments);
@@ -73,117 +106,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           onSearchClose: _closeSearch,
           onSettingsPressed: _openSettings,
         ),
-        body: deeplinks.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (error, stackTrace) => Center(
-            child: AppEmptyState(
-              icon: Icons.error_outline,
-              title: 'Unable to load deeplinks',
-              description: 'Please try again.',
-              action: FilledButton.icon(
-                onPressed: () => ref.invalidate(
-                  widget.favoritesOnly
-                      ? allDeeplinksProvider
-                      : deeplinksProvider,
-                ),
-                icon: const Icon(Icons.refresh),
-                label: const Text('Retry'),
-              ),
-            ),
-          ),
-          data: (deeplinks) {
-            final visibleDeeplinks = _buildVisibleDeeplinks(
-              deeplinks,
-              _searchQuery,
-              favoritesOnly: widget.favoritesOnly,
-              sortOption: _sortOption,
-            );
-            final hasSearchQuery = _searchQuery.trim().isNotEmpty;
-
-            return Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.md,
-                    AppSpacing.sm,
-                  ),
-                  child: Wrap(
-                    spacing: AppSpacing.sm,
-                    runSpacing: AppSpacing.sm,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      PopupMenuButton<DeeplinkSortOption>(
-                        tooltip: 'Sort deeplinks',
-                        initialValue: _sortOption,
-                        onSelected: (sortOption) {
-                          setState(() {
-                            _sortOption = sortOption;
-                          });
-                        },
-                        itemBuilder: (context) {
-                          return DeeplinkSortOption.values.map((sortOption) {
-                            return PopupMenuItem(
-                              value: sortOption,
-                              child: Text(sortOption.label),
-                            );
-                          }).toList();
-                        },
-                        child: InputChip(
-                          avatar: const Icon(Icons.sort),
-                          label: Text(_sortOption.label),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (visibleDeeplinks.isEmpty)
-                  Expanded(
-                    child: Center(
-                      child: _emptyStateForVisibleDeeplinks(
-                        hasSearchQuery: hasSearchQuery,
-                      ),
-                    ),
-                  )
-                else
-                  Expanded(
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(
-                        AppSpacing.md,
-                        AppSpacing.sm,
-                        AppSpacing.md,
-                        AppSpacing.md,
-                      ),
-                      itemCount: visibleDeeplinks.length,
-                      itemBuilder: (context, index) {
-                        final deeplink = visibleDeeplinks[index];
-
-                        return DeeplinkListItem(
-                          deeplink: deeplink,
-                          isProcessing: _processingDeeplinkId == deeplink.id,
-                          isFavoriteProcessing: _processingFavoriteIds.contains(
-                            deeplink.id,
-                          ),
-                          isOpening: _openingDeeplinkIds.contains(deeplink.id),
-                          onTap: () => _openEditScreen(deeplink),
-                          onOpen: () => _openDeeplink(deeplink),
-                          onFavoriteTap: () => _toggleFavorite(deeplink),
-                          onEdit: () => _openEditScreen(deeplink),
-                          onCopy: () => _copyDeeplinkUrl(deeplink.url),
-                          onDeveloperTools: () =>
-                              _showDeveloperTools(deeplink.url),
-                          onDuplicate: () => _duplicateDeeplink(deeplink),
-                          onDelete: () => _confirmAndDeleteDeeplink(deeplink),
-                        );
-                      },
-                      separatorBuilder: (context, index) => const Divider(),
-                    ),
-                  ),
-              ],
-            );
-          },
-        ),
+        body: widget.favoritesOnly
+            ? _buildDeeplinkListBody(deeplinks)
+            : _buildHomeBody(deeplinks, projects, recentHistory),
         floatingActionButton: widget.favoritesOnly
             ? null
             : FloatingActionButton(
@@ -192,6 +117,190 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 child: const Icon(Icons.add),
               ),
       ),
+    );
+  }
+
+  Widget _buildDeeplinkListBody(AsyncValue<List<Deeplink>> deeplinks) {
+    return deeplinks.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (error, stackTrace) => Center(
+        child: AppEmptyState(
+          icon: Icons.error_outline,
+          title: 'Unable to load deeplinks',
+          description: 'Please try again.',
+          action: FilledButton.icon(
+            onPressed: () => ref.invalidate(allDeeplinksProvider),
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+          ),
+        ),
+      ),
+      data: (deeplinks) {
+        final visibleDeeplinks = _buildVisibleDeeplinks(
+          deeplinks,
+          _searchQuery,
+          favoritesOnly: widget.favoritesOnly,
+          sortOption: _sortOption,
+        );
+        final hasSearchQuery = _searchQuery.trim().isNotEmpty;
+
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.sm,
+              ),
+              child: Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.sm,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  PopupMenuButton<DeeplinkSortOption>(
+                    tooltip: 'Sort deeplinks',
+                    initialValue: _sortOption,
+                    onSelected: (sortOption) {
+                      setState(() {
+                        _sortOption = sortOption;
+                      });
+                    },
+                    itemBuilder: (context) {
+                      return DeeplinkSortOption.values.map((sortOption) {
+                        return PopupMenuItem(
+                          value: sortOption,
+                          child: Text(sortOption.label),
+                        );
+                      }).toList();
+                    },
+                    child: InputChip(
+                      avatar: const Icon(Icons.sort),
+                      label: Text(_sortOption.label),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (visibleDeeplinks.isEmpty)
+              Expanded(
+                child: Center(
+                  child: _emptyStateForVisibleDeeplinks(
+                    hasSearchQuery: hasSearchQuery,
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.sm,
+                    AppSpacing.md,
+                    AppSpacing.md,
+                  ),
+                  itemCount: visibleDeeplinks.length,
+                  itemBuilder: (context, index) {
+                    final deeplink = visibleDeeplinks[index];
+
+                    return DeeplinkListItem(
+                      deeplink: deeplink,
+                      isProcessing: _processingDeeplinkId == deeplink.id,
+                      isFavoriteProcessing: _processingFavoriteIds.contains(
+                        deeplink.id,
+                      ),
+                      isOpening: _openingDeeplinkIds.contains(deeplink.id),
+                      onTap: () => _openEditScreen(deeplink),
+                      onOpen: () => _openDeeplink(deeplink),
+                      onFavoriteTap: () => _toggleFavorite(deeplink),
+                      onEdit: () => _openEditScreen(deeplink),
+                      onCopy: () => _copyDeeplinkUrl(deeplink.url),
+                      onDeveloperTools: () => _showDeveloperTools(deeplink.url),
+                      onDuplicate: () => _duplicateDeeplink(deeplink),
+                      onDelete: () => _confirmAndDeleteDeeplink(deeplink),
+                    );
+                  },
+                  separatorBuilder: (context, index) => const Divider(),
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildHomeBody(
+    AsyncValue<List<Deeplink>> deeplinks,
+    AsyncValue<List<Project>> projects,
+    AsyncValue<List<DeeplinkHistory>> recentHistory,
+  ) {
+    final isLoading =
+        (deeplinks.isLoading && !deeplinks.hasValue) ||
+        (projects.isLoading && !projects.hasValue) ||
+        (recentHistory.isLoading && !recentHistory.hasValue);
+
+    if (isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final hasError =
+        deeplinks.hasError || projects.hasError || recentHistory.hasError;
+
+    if (hasError) {
+      return Center(
+        child: AppEmptyState(
+          icon: Icons.error_outline,
+          title: 'Unable to load Home',
+          description: 'Please try again.',
+          action: FilledButton.icon(
+            onPressed: () {
+              ref.invalidate(allDeeplinksProvider);
+              ref.invalidate(projectsProvider);
+              ref.invalidate(recentHistoryProvider(3));
+            },
+            icon: const Icon(Icons.refresh),
+            label: const Text('Retry'),
+          ),
+        ),
+      );
+    }
+
+    final allDeeplinks = deeplinks.value ?? const <Deeplink>[];
+    final allProjects = projects.value ?? const <Project>[];
+    final recentHistoryItems = recentHistory.value ?? const <DeeplinkHistory>[];
+    final projectCounts = _buildProjectCounts(allDeeplinks);
+
+    if (_isSearching) {
+      return _HomeSearchResults(
+        query: _searchQuery,
+        deeplinks: allDeeplinks,
+        projects: allProjects,
+        projectCounts: projectCounts,
+        onDeeplinkTap: _openEditScreen,
+        onDeeplinkOpen: _openDeeplink,
+        openingDeeplinkIds: _openingDeeplinkIds,
+        onProjectTap: _openProjectFromDashboard,
+      );
+    }
+
+    return _HomeDashboard(
+      clipboardQuickLinkUrl: _clipboardQuickLinkUrl,
+      isOpeningClipboardQuickLink: _isOpeningClipboardQuickLink,
+      recentHistoryItems: recentHistoryItems,
+      favoriteDeeplinks: _buildDashboardFavorites(allDeeplinks),
+      recentProjects: allProjects.take(3).toList(),
+      projectCounts: projectCounts,
+      openingHistoryIds: _openingHistoryIds,
+      openingDeeplinkIds: _openingDeeplinkIds,
+      onOpenClipboardQuickLink: _openClipboardQuickLink,
+      onSaveEditClipboardQuickLink: _saveEditClipboardQuickLink,
+      onSeeAllHistory: () => context.goNamed(AppRoute.history.name),
+      onSeeAllFavorites: () => context.goNamed(AppRoute.favorites.name),
+      onSeeAllProjects: () => context.goNamed(AppRoute.projects.name),
+      onOpenHistoryItem: _reopenHistoryItem,
+      onOpenFavorite: _openDeeplink,
+      onFavoriteTap: _openEditScreen,
+      onProjectTap: _openProjectFromDashboard,
     );
   }
 
@@ -302,6 +411,228 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     context.pushNamed(AppRoute.settings.name);
   }
 
+  Future<void> _refreshClipboardQuickLink() async {
+    try {
+      final data = await Clipboard.getData(Clipboard.kTextPlain);
+      final text = data?.text?.trim();
+      final isValid =
+          text != null && DeeplinkValidator.validateUrl(text) == null;
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _clipboardQuickLinkUrl = isValid ? text : null;
+      });
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _clipboardQuickLinkUrl = null;
+      });
+    }
+  }
+
+  Map<int, int> _buildProjectCounts(List<Deeplink> deeplinks) {
+    final counts = <int, int>{};
+
+    for (final deeplink in deeplinks) {
+      final projectId = deeplink.projectId;
+
+      if (projectId == null) {
+        continue;
+      }
+
+      counts.update(projectId, (count) => count + 1, ifAbsent: () => 1);
+    }
+
+    return counts;
+  }
+
+  List<Deeplink> _buildDashboardFavorites(List<Deeplink> deeplinks) {
+    final favorites = deeplinks
+        .where((deeplink) => deeplink.isFavorite)
+        .toList();
+
+    favorites.sort((a, b) {
+      final aLastOpenedAt = a.lastOpenedAt;
+      final bLastOpenedAt = b.lastOpenedAt;
+
+      if (aLastOpenedAt != null && bLastOpenedAt != null) {
+        final comparison = bLastOpenedAt.compareTo(aLastOpenedAt);
+
+        if (comparison != 0) {
+          return comparison;
+        }
+      } else if (aLastOpenedAt != null) {
+        return -1;
+      } else if (bLastOpenedAt != null) {
+        return 1;
+      }
+
+      return b.updatedAt.compareTo(a.updatedAt);
+    });
+
+    return favorites.take(3).toList();
+  }
+
+  Future<void> _openClipboardQuickLink() async {
+    final url = _clipboardQuickLinkUrl;
+
+    if (url == null || _isOpeningClipboardQuickLink) {
+      return;
+    }
+
+    setState(() {
+      _isOpeningClipboardQuickLink = true;
+    });
+
+    try {
+      await _openUrlAndRecordHistory(name: _clipboardHistoryName, url: url);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isOpeningClipboardQuickLink = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _saveEditClipboardQuickLink() async {
+    final url = _clipboardQuickLinkUrl;
+
+    if (url == null) {
+      return;
+    }
+
+    await context.pushNamed(AppRoute.addDeeplink.name, extra: url);
+
+    if (mounted) {
+      _refreshClipboardQuickLink();
+    }
+  }
+
+  Future<void> _reopenHistoryItem(DeeplinkHistory history) async {
+    if (_openingHistoryIds.contains(history.id)) {
+      return;
+    }
+
+    setState(() {
+      _openingHistoryIds.add(history.id);
+    });
+
+    try {
+      await _openUrlAndRecordHistory(name: history.name, url: history.url);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _openingHistoryIds.remove(history.id);
+        });
+      }
+    }
+  }
+
+  Future<void> _openUrlAndRecordHistory({
+    required String name,
+    required String url,
+  }) async {
+    final trimmedUrl = url.trim();
+    final validationError = DeeplinkValidator.validateUrl(trimmedUrl);
+    final historyRepository = ref.read(historyRepositoryProvider);
+
+    if (validationError != null) {
+      await _recordStandaloneOpenHistory(
+        historyRepository,
+        name: name,
+        url: trimmedUrl,
+        isSuccess: false,
+        errorMessage: _invalidHistoryMessage,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _showSnackBar(validationError);
+      return;
+    }
+
+    try {
+      final launcher = ref.read(deeplinkLauncherProvider);
+      final launched = await launcher.open(Uri.parse(trimmedUrl));
+
+      if (launched) {
+        await _recordStandaloneOpenHistory(
+          historyRepository,
+          name: name,
+          url: trimmedUrl,
+          isSuccess: true,
+        );
+        return;
+      }
+
+      await _recordStandaloneOpenHistory(
+        historyRepository,
+        name: name,
+        url: trimmedUrl,
+        isSuccess: false,
+        errorMessage: _noHandlerMessage,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _showSnackBar(_noHandlerMessage);
+    } catch (_) {
+      await _recordStandaloneOpenHistory(
+        historyRepository,
+        name: name,
+        url: trimmedUrl,
+        isSuccess: false,
+        errorMessage: _unableToOpenMessage,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      _showSnackBar(_unableToOpenMessage);
+    }
+  }
+
+  Future<void> _recordStandaloneOpenHistory(
+    HistoryRepository repository, {
+    required String name,
+    required String url,
+    required bool isSuccess,
+    String? errorMessage,
+  }) async {
+    try {
+      await repository.createHistory(
+        name: name,
+        url: url,
+        isSuccess: isSuccess,
+        errorMessage: errorMessage,
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      _showSnackBar('Deeplink opened, but history could not be saved.');
+    }
+  }
+
+  void _openProjectFromDashboard(Project project) {
+    ref.read(currentProjectIdProvider.notifier).select(project.id);
+    ref.read(currentEnvironmentIdProvider.notifier).select(null);
+    context.goNamed(AppRoute.projects.name);
+  }
+
   List<Deeplink> _buildVisibleDeeplinks(
     List<Deeplink> deeplinks,
     String query, {
@@ -368,6 +699,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         context,
       ).showSnackBar(const SnackBar(content: Text('Unable to copy deeplink.')));
     }
+  }
+
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _showDeveloperTools(String url) {
@@ -658,6 +995,453 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         });
       }
     }
+  }
+}
+
+class _HomeDashboard extends StatelessWidget {
+  const _HomeDashboard({
+    required this.clipboardQuickLinkUrl,
+    required this.isOpeningClipboardQuickLink,
+    required this.recentHistoryItems,
+    required this.favoriteDeeplinks,
+    required this.recentProjects,
+    required this.projectCounts,
+    required this.openingHistoryIds,
+    required this.openingDeeplinkIds,
+    required this.onOpenClipboardQuickLink,
+    required this.onSaveEditClipboardQuickLink,
+    required this.onSeeAllHistory,
+    required this.onSeeAllFavorites,
+    required this.onSeeAllProjects,
+    required this.onOpenHistoryItem,
+    required this.onOpenFavorite,
+    required this.onFavoriteTap,
+    required this.onProjectTap,
+  });
+
+  final String? clipboardQuickLinkUrl;
+  final bool isOpeningClipboardQuickLink;
+  final List<DeeplinkHistory> recentHistoryItems;
+  final List<Deeplink> favoriteDeeplinks;
+  final List<Project> recentProjects;
+  final Map<int, int> projectCounts;
+  final Set<int> openingHistoryIds;
+  final Set<int> openingDeeplinkIds;
+  final VoidCallback onOpenClipboardQuickLink;
+  final VoidCallback onSaveEditClipboardQuickLink;
+  final VoidCallback onSeeAllHistory;
+  final VoidCallback onSeeAllFavorites;
+  final VoidCallback onSeeAllProjects;
+  final ValueChanged<DeeplinkHistory> onOpenHistoryItem;
+  final ValueChanged<Deeplink> onOpenFavorite;
+  final ValueChanged<Deeplink> onFavoriteTap;
+  final ValueChanged<Project> onProjectTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      children: [
+        if (clipboardQuickLinkUrl != null) ...[
+          QuickLinkCard(
+            url: clipboardQuickLinkUrl!,
+            isOpening: isOpeningClipboardQuickLink,
+            onOpen: onOpenClipboardQuickLink,
+            onSaveEdit: onSaveEditClipboardQuickLink,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+        ],
+        DashboardSection(
+          title: 'Recently Opened',
+          action: _SectionTextAction(
+            label: 'See all',
+            onPressed: onSeeAllHistory,
+          ),
+          child: recentHistoryItems.isEmpty
+              ? const _DashboardMessage('No recent activity yet')
+              : _DashboardList(
+                  children: [
+                    for (final history in recentHistoryItems)
+                      _HistoryDashboardItem(
+                        history: history,
+                        isOpening: openingHistoryIds.contains(history.id),
+                        onOpen: () => onOpenHistoryItem(history),
+                      ),
+                  ],
+                ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        DashboardSection(
+          title: 'Favorites',
+          action: _SectionTextAction(
+            label: 'See all',
+            onPressed: onSeeAllFavorites,
+          ),
+          child: favoriteDeeplinks.isEmpty
+              ? const _DashboardMessage('No favorites yet')
+              : _DashboardList(
+                  children: [
+                    for (final deeplink in favoriteDeeplinks)
+                      _FavoriteDashboardItem(
+                        deeplink: deeplink,
+                        isOpening: openingDeeplinkIds.contains(deeplink.id),
+                        onTap: () => onFavoriteTap(deeplink),
+                        onOpen: () => onOpenFavorite(deeplink),
+                      ),
+                  ],
+                ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        DashboardSection(
+          title: 'Recent Projects',
+          action: _SectionTextAction(
+            label: 'See all',
+            onPressed: onSeeAllProjects,
+          ),
+          child: recentProjects.isEmpty
+              ? const _DashboardMessage('No projects yet')
+              : _DashboardList(
+                  children: [
+                    for (final project in recentProjects)
+                      _ProjectDashboardItem(
+                        project: project,
+                        deeplinkCount: projectCounts[project.id] ?? 0,
+                        onTap: () => onProjectTap(project),
+                      ),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HomeSearchResults extends StatelessWidget {
+  const _HomeSearchResults({
+    required this.query,
+    required this.deeplinks,
+    required this.projects,
+    required this.projectCounts,
+    required this.onDeeplinkTap,
+    required this.onDeeplinkOpen,
+    required this.openingDeeplinkIds,
+    required this.onProjectTap,
+  });
+
+  final String query;
+  final List<Deeplink> deeplinks;
+  final List<Project> projects;
+  final Map<int, int> projectCounts;
+  final ValueChanged<Deeplink> onDeeplinkTap;
+  final ValueChanged<Deeplink> onDeeplinkOpen;
+  final Set<int> openingDeeplinkIds;
+  final ValueChanged<Project> onProjectTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedQuery = query.trim().toLowerCase();
+
+    if (normalizedQuery.isEmpty) {
+      return const Center(
+        child: AppEmptyState(
+          icon: Icons.search,
+          title: 'Search saved content',
+          description: 'Find deeplinks by name or URL, and projects by name.',
+        ),
+      );
+    }
+
+    final matchingDeeplinks = deeplinks.where((deeplink) {
+      return deeplink.name.toLowerCase().contains(normalizedQuery) ||
+          deeplink.url.toLowerCase().contains(normalizedQuery);
+    }).toList();
+    final matchingProjects = projects.where((project) {
+      final description = project.description;
+
+      return project.name.toLowerCase().contains(normalizedQuery) ||
+          (description?.toLowerCase().contains(normalizedQuery) ?? false);
+    }).toList();
+
+    if (matchingDeeplinks.isEmpty && matchingProjects.isEmpty) {
+      return Center(
+        child: AppEmptyState(
+          icon: Icons.search_off,
+          title: 'No results for "$query"',
+          description: 'Try a different search term.',
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      children: [
+        DashboardSection(
+          title: 'Deeplinks',
+          child: matchingDeeplinks.isEmpty
+              ? const _DashboardMessage('No matching deeplinks')
+              : _DashboardList(
+                  children: [
+                    for (final deeplink in matchingDeeplinks)
+                      _FavoriteDashboardItem(
+                        deeplink: deeplink,
+                        isOpening: openingDeeplinkIds.contains(deeplink.id),
+                        onTap: () => onDeeplinkTap(deeplink),
+                        onOpen: () => onDeeplinkOpen(deeplink),
+                      ),
+                  ],
+                ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        DashboardSection(
+          title: 'Projects',
+          child: matchingProjects.isEmpty
+              ? const _DashboardMessage('No matching projects')
+              : _DashboardList(
+                  children: [
+                    for (final project in matchingProjects)
+                      _ProjectDashboardItem(
+                        project: project,
+                        deeplinkCount: projectCounts[project.id] ?? 0,
+                        onTap: () => onProjectTap(project),
+                      ),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SectionTextAction extends StatelessWidget {
+  const _SectionTextAction({required this.label, required this.onPressed});
+
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton(
+      onPressed: onPressed,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(label),
+          const SizedBox(width: AppSpacing.xs),
+          const Icon(Icons.chevron_right),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardList extends StatelessWidget {
+  const _DashboardList({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Column(
+        children: [
+          for (var index = 0; index < children.length; index++) ...[
+            children[index],
+            if (index != children.length - 1) const Divider(height: 1),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardMessage extends StatelessWidget {
+  const _DashboardMessage(this.message);
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.md),
+      decoration: BoxDecoration(
+        border: Border.all(color: colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+      ),
+      child: Text(
+        message,
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+      ),
+    );
+  }
+}
+
+class _HistoryDashboardItem extends StatelessWidget {
+  const _HistoryDashboardItem({
+    required this.history,
+    required this.isOpening,
+    required this.onOpen,
+  });
+
+  final DeeplinkHistory history;
+  final bool isOpening;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      title: Text(
+        history.name,
+        style: textTheme.titleSmall,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            history.url,
+            style: textTheme.bodyMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            DateTimeFormatter.compactDateTime(history.openedAt),
+            style: textTheme.labelMedium?.copyWith(
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ],
+      ),
+      trailing: IconButton(
+        tooltip: 'Open ${history.name}',
+        onPressed: isOpening ? null : onOpen,
+        icon: isOpening
+            ? const SizedBox.square(
+                dimension: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.open_in_new),
+      ),
+    );
+  }
+}
+
+class _FavoriteDashboardItem extends StatelessWidget {
+  const _FavoriteDashboardItem({
+    required this.deeplink,
+    required this.isOpening,
+    required this.onTap,
+    required this.onOpen,
+  });
+
+  final Deeplink deeplink;
+  final bool isOpening;
+  final VoidCallback onTap;
+  final VoidCallback onOpen;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return ListTile(
+      onTap: onTap,
+      leading: Icon(Icons.star, color: colorScheme.primary),
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      title: Text(
+        deeplink.name,
+        style: textTheme.titleSmall,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        deeplink.url,
+        style: textTheme.bodyMedium?.copyWith(
+          color: colorScheme.onSurfaceVariant,
+        ),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: IconButton(
+        tooltip: 'Open ${deeplink.name}',
+        onPressed: isOpening ? null : onOpen,
+        icon: isOpening
+            ? const SizedBox.square(
+                dimension: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.open_in_new),
+      ),
+    );
+  }
+}
+
+class _ProjectDashboardItem extends StatelessWidget {
+  const _ProjectDashboardItem({
+    required this.project,
+    required this.deeplinkCount,
+    required this.onTap,
+  });
+
+  final Project project;
+  final int deeplinkCount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return ListTile(
+      onTap: onTap,
+      contentPadding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.md,
+        vertical: AppSpacing.xs,
+      ),
+      leading: const Icon(Icons.folder_outlined),
+      title: Text(
+        project.name,
+        style: textTheme.titleSmall,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      subtitle: Text(
+        _deeplinkCountLabel,
+        style: textTheme.bodyMedium?.copyWith(
+          color: colorScheme.onSurfaceVariant,
+        ),
+      ),
+      trailing: const Icon(Icons.chevron_right),
+    );
+  }
+
+  String get _deeplinkCountLabel {
+    if (deeplinkCount == 1) {
+      return '1 deeplink';
+    }
+
+    return '$deeplinkCount deeplinks';
   }
 }
 

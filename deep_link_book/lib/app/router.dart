@@ -76,7 +76,12 @@ GoRouter createAppRouter({String? initialLocation}) {
       GoRoute(
         path: AppRoute.addDeeplink.path,
         name: AppRoute.addDeeplink.name,
-        builder: (context, state) => const AddDeeplinkScreen(),
+        builder: (context, state) {
+          final extra = state.extra;
+          final initialUrl = extra is String ? extra : null;
+
+          return AddDeeplinkScreen(initialUrl: initialUrl);
+        },
       ),
       GoRoute(
         path: AppRoute.editDeeplink.path,
