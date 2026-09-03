@@ -154,7 +154,7 @@ class _ToolSection extends StatelessWidget {
             IconButton(
               tooltip: copyLabel,
               onPressed: onCopy,
-              icon: const Icon(Icons.copy),
+              icon: const Icon(Icons.content_copy),
             ),
           ],
         ),

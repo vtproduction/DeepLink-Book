@@ -115,7 +115,7 @@ class _AppRootTopBarState extends State<AppRootTopBar> {
         IconButton(
           tooltip: 'Settings',
           onPressed: widget.onSettingsPressed,
-          icon: const Icon(Icons.settings_outlined),
+          icon: const Icon(Icons.settings),
         ),
       ],
     );

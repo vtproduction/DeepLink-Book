@@ -5,7 +5,6 @@ import '../features/deeplinks/screens/add_deeplink_screen.dart';
 import '../features/deeplinks/screens/edit_deeplink_screen.dart';
 import '../features/deeplinks/screens/favorites_screen.dart';
 import '../features/deeplinks/screens/home_screen.dart';
-import '../features/environments/screens/environment_list_screen.dart';
 import '../features/history/screens/history_screen.dart';
 import '../features/projects/screens/project_detail_screen.dart';
 import '../features/projects/screens/projects_screen.dart';
@@ -18,7 +17,6 @@ enum AppRoute {
   favorites(name: 'favorites', path: '/favorites'),
   projects(name: 'projects', path: '/projects'),
   projectDetail(name: 'project-detail', path: '/projects/:projectId'),
-  environments(name: 'environments', path: '/projects/:projectId/environments'),
   history(name: 'history', path: '/history'),
   settings(name: 'settings', path: '/settings');
 
@@ -103,17 +101,6 @@ GoRouter createAppRouter({String? initialLocation}) {
           );
 
           return ProjectDetailScreen(projectId: projectId);
-        },
-      ),
-      GoRoute(
-        path: AppRoute.environments.path,
-        name: AppRoute.environments.name,
-        builder: (context, state) {
-          final projectId = int.tryParse(
-            state.pathParameters['projectId'] ?? '',
-          );
-
-          return EnvironmentListScreen(projectId: projectId);
         },
       ),
       GoRoute(

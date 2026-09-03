@@ -117,10 +117,13 @@ class HistoryListItem extends StatelessWidget {
                           onDelete?.call();
                       }
                     },
-                    itemBuilder: (context) => const [
+                    itemBuilder: (context) => [
                       PopupMenuItem(
                         value: _HistoryItemAction.delete,
-                        child: Text('Delete'),
+                        child: Text(
+                          'Delete',
+                          style: TextStyle(color: colorScheme.error),
+                        ),
                       ),
                     ],
                   ),

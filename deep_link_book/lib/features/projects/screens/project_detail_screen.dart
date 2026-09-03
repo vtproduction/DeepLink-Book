@@ -121,7 +121,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                 IconButton(
                   tooltip: 'Edit ${project.name}',
                   onPressed: () => _showEditProjectDialog(project),
-                  icon: const Icon(Icons.edit_outlined),
+                  icon: const Icon(Icons.edit),
                 ),
               if (project != null)
                 PopupMenuButton<_ProjectDetailAction>(
@@ -132,10 +132,15 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                         _deleteProject(project, projects.value?.length ?? 0);
                     }
                   },
-                  itemBuilder: (context) => const [
+                  itemBuilder: (context) => [
                     PopupMenuItem(
                       value: _ProjectDetailAction.delete,
-                      child: Text('Delete Project'),
+                      child: Text(
+                        'Delete Project',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
                     ),
                   ],
                 ),

@@ -1175,7 +1175,7 @@ class _HomeSearchResults extends StatelessWidget {
         DashboardSection(
           title: 'Deeplinks',
           child: matchingDeeplinks.isEmpty
-              ? const _DashboardMessage('No matching deeplinks')
+              ? _DashboardMessage('No deeplink results for "$query"')
               : _DashboardList(
                   children: [
                     for (final deeplink in matchingDeeplinks)
@@ -1192,7 +1192,7 @@ class _HomeSearchResults extends StatelessWidget {
         DashboardSection(
           title: 'Projects',
           child: matchingProjects.isEmpty
-              ? const _DashboardMessage('No matching projects')
+              ? _DashboardMessage('No project results for "$query"')
               : _DashboardList(
                   children: [
                     for (final project in matchingProjects)
