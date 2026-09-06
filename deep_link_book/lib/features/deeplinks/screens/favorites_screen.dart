@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
+import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../app/widgets/app_root_top_bar.dart';
 import '../../../core/database/app_database.dart';
@@ -49,14 +50,17 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
         }
       },
       child: Scaffold(
+        backgroundColor: const Color(0xFFF2F8F9),
         appBar: AppRootTopBar(
-          title: 'Favorites',
+          title: 'Deep Link Book',
           searchQuery: _searchQuery,
           isSearching: _isSearching,
           onSearchPressed: _startSearch,
           onSearchQueryChanged: _updateSearchQuery,
           onSearchClose: _closeSearch,
           onSettingsPressed: _openSettings,
+          eyebrow: 'Dev Suite',
+          leading: const _FavoritesBrandIcon(),
         ),
         body: deeplinks.when(
           loading: () => const AppLoadingState(),
@@ -74,44 +78,66 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
             );
             final hasSearchQuery = _searchQuery.trim().isNotEmpty;
 
-            if (visibleFavorites.isEmpty) {
-              return Center(
-                child: AppEmptyState(
-                  icon: hasSearchQuery ? Icons.search_off : Icons.star_border,
-                  title: hasSearchQuery
-                      ? 'No results for "$_searchQuery"'
-                      : 'No favorites yet',
-                  description: hasSearchQuery
-                      ? 'Try a different search term.'
-                      : 'Favorite a deeplink to access it quickly.',
-                ),
-              );
-            }
-
-            return ListView.separated(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              itemCount: visibleFavorites.length,
-              itemBuilder: (context, index) {
-                final deeplink = visibleFavorites[index];
-
-                return DeeplinkListItem(
-                  deeplink: deeplink,
-                  isProcessing: _processingDeeplinkId == deeplink.id,
-                  isFavoriteProcessing: _processingFavoriteIds.contains(
-                    deeplink.id,
-                  ),
-                  isOpening: _openingDeeplinkIds.contains(deeplink.id),
-                  onTap: () => _openEditScreen(deeplink),
-                  onOpen: () => _openDeeplink(deeplink),
-                  onFavoriteTap: () => _toggleFavorite(deeplink),
-                  onEdit: () => _openEditScreen(deeplink),
-                  onCopy: () => _copyDeeplinkUrl(deeplink.url),
-                  onDeveloperTools: () => _showDeveloperTools(deeplink.url),
-                  onDuplicate: () => _duplicateDeeplink(deeplink),
-                  onDelete: () => _confirmAndDeleteDeeplink(deeplink),
-                );
-              },
-              separatorBuilder: (context, index) => const Divider(height: 1),
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.xl,
+              ),
+              children: [
+                _FavoritesPageHeader(count: visibleFavorites.length),
+                const SizedBox(height: AppSpacing.lg),
+                if (visibleFavorites.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: AppSpacing.xl),
+                    child: AppEmptyState(
+                      icon: hasSearchQuery
+                          ? Icons.search_off
+                          : Icons.star_border,
+                      title: hasSearchQuery
+                          ? 'No results for "$_searchQuery"'
+                          : 'No favorites yet',
+                      description: hasSearchQuery
+                          ? 'Try a different search term.'
+                          : 'Favorite a deeplink to access it quickly.',
+                    ),
+                  )
+                else
+                  for (
+                    var index = 0;
+                    index < visibleFavorites.length;
+                    index++
+                  ) ...[
+                    DeeplinkListItem(
+                      deeplink: visibleFavorites[index],
+                      cardLayout: true,
+                      isProcessing:
+                          _processingDeeplinkId == visibleFavorites[index].id,
+                      isFavoriteProcessing: _processingFavoriteIds.contains(
+                        visibleFavorites[index].id,
+                      ),
+                      isOpening: _openingDeeplinkIds.contains(
+                        visibleFavorites[index].id,
+                      ),
+                      onTap: () => _openEditScreen(visibleFavorites[index]),
+                      onOpen: () => _openDeeplink(visibleFavorites[index]),
+                      onFavoriteTap: () =>
+                          _toggleFavorite(visibleFavorites[index]),
+                      onEdit: () => _openEditScreen(visibleFavorites[index]),
+                      onCopy: () =>
+                          _copyDeeplinkUrl(visibleFavorites[index].url),
+                      onDeveloperTools: () =>
+                          _showDeveloperTools(visibleFavorites[index].url),
+                      onDuplicate: () =>
+                          _duplicateDeeplink(visibleFavorites[index]),
+                      onDelete: () =>
+                          _confirmAndDeleteDeeplink(visibleFavorites[index]),
+                    ),
+                    if (index != visibleFavorites.length - 1)
+                      const SizedBox(height: AppSpacing.md),
+                  ],
+              ],
             );
           },
         ),
@@ -453,5 +479,92 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(SnackBar(content: Text(message)));
+  }
+}
+
+class _FavoritesPageHeader extends StatelessWidget {
+  const _FavoritesPageHeader({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.xs,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              'Favorites',
+              style: textTheme.headlineMedium?.copyWith(
+                color: const Color(0xFF0B1329),
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: const Color(0xFFCFFAFE),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.sm,
+                  vertical: AppSpacing.xs,
+                ),
+                child: Text(
+                  '$count Starred',
+                  style: textTheme.labelMedium?.copyWith(
+                    color: const Color(0xFF115E59),
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Quick access to your starred deeplinks',
+          style: textTheme.bodyMedium?.copyWith(
+            color: const Color(0xFF64748B),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _FavoritesBrandIcon extends StatelessWidget {
+  const _FavoritesBrandIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.bottomLeft,
+          end: Alignment.topRight,
+          colors: [Color(0xFF2563EB), Color(0xFF00E5FF)],
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x3300B4D8),
+            blurRadius: 12,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: const SizedBox.square(
+        dimension: 40,
+        child: Icon(Icons.link, color: Colors.white, size: 22),
+      ),
+    );
   }
 }

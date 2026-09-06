@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
+import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../app/widgets/app_root_top_bar.dart';
 import '../../../core/database/app_database.dart';
@@ -48,8 +49,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         }
       },
       child: Scaffold(
+        backgroundColor: const Color(0xFFF3F9F9),
         appBar: AppRootTopBar(
-          title: 'History',
+          title: 'Deep Link Book',
+          eyebrow: 'Dev Suite',
+          leading: const _HistoryBrandIcon(),
           searchQuery: _searchQuery,
           isSearching: _isSearching,
           onSearchPressed: _startSearch,
@@ -88,13 +92,31 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             }
 
             final groups = _buildHistoryGroups(visibleHistoryItems);
+            final successCount = visibleHistoryItems
+                .where((history) => history.isSuccess)
+                .length;
+            final failedCount = visibleHistoryItems.length - successCount;
 
             return ListView(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.md,
+                AppSpacing.xl,
+              ),
               children: [
+                _HistoryPageHeader(
+                  totalCount: visibleHistoryItems.length,
+                  successCount: successCount,
+                  failedCount: failedCount,
+                ),
+                const SizedBox(height: AppSpacing.lg),
                 for (final group in groups) ...[
-                  _HistoryGroupHeader(label: group.label),
-                  const SizedBox(height: AppSpacing.xs),
+                  _HistoryGroupHeader(
+                    label: group.label,
+                    count: group.items.length,
+                  ),
+                  const SizedBox(height: AppSpacing.sm),
                   for (var index = 0; index < group.items.length; index++) ...[
                     HistoryListItem(
                       history: group.items[index],
@@ -110,7 +132,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                           _confirmAndDeleteHistoryItem(group.items[index]),
                     ),
                     if (index != group.items.length - 1)
-                      const Divider(height: 1),
+                      const SizedBox(height: AppSpacing.sm),
                   ],
                   const SizedBox(height: AppSpacing.lg),
                 ],
@@ -164,11 +186,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final difference = today.difference(itemDate).inDays;
 
     if (difference == 0) {
-      return 'Today';
+      return 'Today, ${_monthNames[local.month - 1]} ${local.day}, ${local.year}';
     }
 
     if (difference == 1) {
-      return 'Yesterday';
+      return 'Yesterday, ${_monthNames[local.month - 1]} ${local.day}, ${local.year}';
     }
 
     return '${_monthNames[local.month - 1]} ${local.day}, ${local.year}';
@@ -402,20 +424,181 @@ class _HistoryDateGroup {
   final List<DeeplinkHistory> items;
 }
 
-class _HistoryGroupHeader extends StatelessWidget {
-  const _HistoryGroupHeader({required this.label});
+class _HistoryPageHeader extends StatelessWidget {
+  const _HistoryPageHeader({
+    required this.totalCount,
+    required this.successCount,
+    required this.failedCount,
+  });
 
-  final String label;
+  final int totalCount;
+  final int successCount;
+  final int failedCount;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
-    return Text(
-      label,
-      style: Theme.of(
-        context,
-      ).textTheme.labelLarge?.copyWith(color: colorScheme.onSurfaceVariant),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'History',
+          style: textTheme.headlineMedium?.copyWith(
+            color: const Color(0xFF020617),
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          'Snapshot of launched deep links',
+          style: textTheme.bodySmall?.copyWith(
+            color: const Color(0xFF64748B),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.md),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _HistorySummaryPill(
+                label: 'All Logs ($totalCount)',
+                dotColor: const Color(0xFF22D3EE),
+                isPrimary: true,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              _HistorySummaryPill(
+                label: 'Success ($successCount)',
+                dotColor: const Color(0xFF10B981),
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              _HistorySummaryPill(
+                label: 'Failed ($failedCount)',
+                dotColor: const Color(0xFFF43F5E),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HistorySummaryPill extends StatelessWidget {
+  const _HistorySummaryPill({
+    required this.label,
+    required this.dotColor,
+    this.isPrimary = false,
+  });
+
+  final String label;
+  final Color dotColor;
+  final bool isPrimary;
+
+  @override
+  Widget build(BuildContext context) {
+    final backgroundColor = isPrimary ? const Color(0xFF0B1329) : Colors.white;
+    final borderColor = isPrimary
+        ? const Color(0xFF0B1329)
+        : const Color(0xFFE2E8F0);
+    final textColor = isPrimary
+        ? const Color(0xFF67E8F9)
+        : const Color(0xFF475569);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: borderColor),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.sm,
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: dotColor,
+                shape: BoxShape.circle,
+              ),
+              child: const SizedBox.square(dimension: 7),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              label,
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                color: textColor,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _HistoryGroupHeader extends StatelessWidget {
+  const _HistoryGroupHeader({required this.label, required this.count});
+
+  final String label;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label.toUpperCase(),
+            style: textTheme.labelLarge?.copyWith(
+              color: const Color(0xFF94A3B8),
+              fontFamily: 'monospace',
+              fontWeight: FontWeight.w800,
+              letterSpacing: 1.4,
+            ),
+          ),
+        ),
+        Text(
+          count == 1 ? '1 event' : '$count events',
+          style: textTheme.labelMedium?.copyWith(
+            color: const Color(0xFF94A3B8),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _HistoryBrandIcon extends StatelessWidget {
+  const _HistoryBrandIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF22D3EE), Color(0xFF2563EB)],
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x3322D3EE),
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: const Icon(Icons.link, color: Colors.white),
     );
   }
 }
