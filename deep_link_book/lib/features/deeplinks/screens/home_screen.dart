@@ -15,6 +15,7 @@ import '../../../core/widgets/app_error_state.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_loading_state.dart';
 import '../data/deeplink_repository.dart';
+import '../developer_tools/deeplink_command_builder.dart';
 import '../developer_tools/developer_tools_view.dart';
 import '../providers/deeplink_providers.dart';
 import '../validation/deeplink_validator.dart';
@@ -99,14 +100,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         }
       },
       child: Scaffold(
+        backgroundColor: widget.favoritesOnly ? null : const Color(0xFFF3F6FA),
         appBar: AppRootTopBar(
-          title: widget.title,
+          title: widget.favoritesOnly ? widget.title : 'Deep Link Book',
           searchQuery: _searchQuery,
           isSearching: _isSearching,
           onSearchPressed: _startSearch,
           onSearchQueryChanged: _updateSearchQuery,
           onSearchClose: _closeSearch,
           onSettingsPressed: _openSettings,
+          eyebrow: widget.favoritesOnly ? null : 'Dev Suite',
+          leading: widget.favoritesOnly ? null : const _HomeBrandIcon(),
         ),
         body: widget.favoritesOnly
             ? _buildDeeplinkListBody(deeplinks)
@@ -114,6 +118,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         floatingActionButton: widget.favoritesOnly
             ? null
             : FloatingActionButton(
+                backgroundColor: const Color(0xFF22D3EE),
+                foregroundColor: const Color(0xFF020617),
                 tooltip: 'Add deeplink',
                 onPressed: () => context.pushNamed(AppRoute.addDeeplink.name),
                 child: const Icon(Icons.add),
@@ -283,6 +289,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       favoriteDeeplinks: _buildDashboardFavorites(allDeeplinks),
       recentProjects: allProjects.take(3).toList(),
       projectCounts: projectCounts,
+      terminalDispatchUrl: _buildTerminalDispatchUrl(
+        clipboardQuickLinkUrl: _clipboardQuickLinkUrl,
+        recentHistoryItems: recentHistoryItems,
+        favoriteDeeplinks: _buildDashboardFavorites(allDeeplinks),
+      ),
       openingHistoryIds: _openingHistoryIds,
       openingDeeplinkIds: _openingDeeplinkIds,
       onOpenClipboardQuickLink: _openClipboardQuickLink,
@@ -294,6 +305,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       onOpenFavorite: _openDeeplink,
       onFavoriteTap: _openEditScreen,
       onProjectTap: _openProjectFromDashboard,
+      onCopyTerminalCommand: _copyText,
     );
   }
 
@@ -474,6 +486,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
     });
 
     return favorites.take(3).toList();
+  }
+
+  String? _buildTerminalDispatchUrl({
+    required String? clipboardQuickLinkUrl,
+    required List<DeeplinkHistory> recentHistoryItems,
+    required List<Deeplink> favoriteDeeplinks,
+  }) {
+    if (clipboardQuickLinkUrl != null) {
+      return clipboardQuickLinkUrl;
+    }
+
+    if (recentHistoryItems.isNotEmpty) {
+      return recentHistoryItems.first.url;
+    }
+
+    if (favoriteDeeplinks.isNotEmpty) {
+      return favoriteDeeplinks.first.url;
+    }
+
+    return null;
   }
 
   Future<void> _openClipboardQuickLink() async {
@@ -677,8 +709,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
   }
 
   Future<void> _copyDeeplinkUrl(String url) async {
+    return _copyText(url, 'Deeplink copied.', 'Unable to copy deeplink.');
+  }
+
+  Future<void> _copyText(
+    String text,
+    String successMessage, [
+    String failureMessage = 'Unable to copy to clipboard.',
+  ]) async {
     try {
-      await Clipboard.setData(ClipboardData(text: url));
+      await Clipboard.setData(ClipboardData(text: text));
 
       if (!mounted) {
         return;
@@ -686,7 +726,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Deeplink copied.')));
+      ).showSnackBar(SnackBar(content: Text(successMessage)));
     } catch (_) {
       if (!mounted) {
         return;
@@ -694,7 +734,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
 
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Unable to copy deeplink.')));
+      ).showSnackBar(SnackBar(content: Text(failureMessage)));
     }
   }
 
@@ -1003,6 +1043,7 @@ class _HomeDashboard extends StatelessWidget {
     required this.favoriteDeeplinks,
     required this.recentProjects,
     required this.projectCounts,
+    required this.terminalDispatchUrl,
     required this.openingHistoryIds,
     required this.openingDeeplinkIds,
     required this.onOpenClipboardQuickLink,
@@ -1014,6 +1055,7 @@ class _HomeDashboard extends StatelessWidget {
     required this.onOpenFavorite,
     required this.onFavoriteTap,
     required this.onProjectTap,
+    required this.onCopyTerminalCommand,
   });
 
   final String? clipboardQuickLinkUrl;
@@ -1022,6 +1064,7 @@ class _HomeDashboard extends StatelessWidget {
   final List<Deeplink> favoriteDeeplinks;
   final List<Project> recentProjects;
   final Map<int, int> projectCounts;
+  final String? terminalDispatchUrl;
   final Set<int> openingHistoryIds;
   final Set<int> openingDeeplinkIds;
   final VoidCallback onOpenClipboardQuickLink;
@@ -1033,11 +1076,20 @@ class _HomeDashboard extends StatelessWidget {
   final ValueChanged<Deeplink> onOpenFavorite;
   final ValueChanged<Deeplink> onFavoriteTap;
   final ValueChanged<Project> onProjectTap;
+  final Future<void> Function(String text, String successMessage)
+  onCopyTerminalCommand;
 
   @override
   Widget build(BuildContext context) {
+    final terminalDispatchUrl = this.terminalDispatchUrl;
+
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.md,
+        AppSpacing.xl,
+      ),
       children: [
         if (clipboardQuickLinkUrl != null) ...[
           QuickLinkCard(
@@ -1097,7 +1149,13 @@ class _HomeDashboard extends StatelessWidget {
           ),
           child: recentProjects.isEmpty
               ? const _DashboardMessage('No projects yet')
-              : _DashboardList(
+              : GridView.count(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: AppSpacing.md,
+                  mainAxisSpacing: AppSpacing.md,
+                  childAspectRatio: 0.95,
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
                   children: [
                     for (final project in recentProjects)
                       _ProjectDashboardItem(
@@ -1108,6 +1166,13 @@ class _HomeDashboard extends StatelessWidget {
                   ],
                 ),
         ),
+        if (terminalDispatchUrl != null) ...[
+          const SizedBox(height: AppSpacing.xl),
+          _TerminalDispatchCard(
+            url: terminalDispatchUrl,
+            onCopyCommand: onCopyTerminalCommand,
+          ),
+        ],
       ],
     );
   }
@@ -1218,6 +1283,12 @@ class _SectionTextAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextButton(
+      style: TextButton.styleFrom(
+        foregroundColor: const Color(0xFF4F46E5),
+        textStyle: Theme.of(
+          context,
+        ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w800),
+      ),
       onPressed: onPressed,
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1238,19 +1309,14 @@ class _DashboardList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
-      child: Column(
-        children: [
-          for (var index = 0; index < children.length; index++) ...[
-            children[index],
-            if (index != children.length - 1) const Divider(height: 1),
-          ],
+    return Column(
+      children: [
+        for (var index = 0; index < children.length; index++) ...[
+          children[index],
+          if (index != children.length - 1)
+            const SizedBox(height: AppSpacing.sm),
         ],
-      ),
+      ],
     );
   }
 }
@@ -1267,8 +1333,16 @@ class _DashboardMessage extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.md),
       decoration: BoxDecoration(
+        color: Colors.white,
         border: Border.all(color: colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A0F172A),
+            blurRadius: 12,
+            offset: Offset(0, 2),
+          ),
+        ],
       ),
       child: Text(
         message,
@@ -1296,46 +1370,82 @@ class _HistoryDashboardItem extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      title: Text(
-        history.name,
-        style: textTheme.titleSmall,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            history.url,
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+    return DecoratedBox(
+      decoration: _homeCardDecoration(),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Row(
+          children: [
+            _StatusDot(
+              color: history.isSuccess
+                  ? const Color(0xFF10B981)
+                  : colorScheme.error,
             ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            DateTimeFormatter.compactDateTime(history.openedAt),
-            style: textTheme.labelMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          history.name.isEmpty ? history.url : history.name,
+                          style: textTheme.titleMedium?.copyWith(
+                            color: const Color(0xFF0F172A),
+                            fontWeight: FontWeight.w800,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      _SchemeChip(url: history.url),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    history.url,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontFamily: 'monospace',
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    DateTimeFormatter.compactDateTime(history.openedAt),
+                    style: textTheme.labelMedium?.copyWith(
+                      color: const Color(0xFF94A3B8),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
-      trailing: IconButton(
-        tooltip: 'Open ${history.name}',
-        onPressed: isOpening ? null : onOpen,
-        icon: isOpening
-            ? const SizedBox.square(
-                dimension: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.open_in_new),
+            const SizedBox(width: AppSpacing.sm),
+            FilledButton.icon(
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF0F172A),
+                foregroundColor: const Color(0xFF67E8F9),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+                minimumSize: const Size(0, 40),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
+              ),
+              onPressed: isOpening ? null : onOpen,
+              icon: isOpening
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.open_in_new, size: 18),
+              label: const Text('Launch'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1359,36 +1469,85 @@ class _FavoriteDashboardItem extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return ListTile(
-      onTap: onTap,
-      leading: Icon(Icons.star, color: colorScheme.primary),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      title: Text(
-        deeplink.name,
-        style: textTheme.titleSmall,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Text(
-        deeplink.url,
-        style: textTheme.bodyMedium?.copyWith(
-          color: colorScheme.onSurfaceVariant,
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
+        decoration: _homeCardDecoration().copyWith(
+          gradient: const LinearGradient(
+            colors: [Colors.white, Color(0xFFF0FDFA)],
+          ),
         ),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
-      ),
-      trailing: IconButton(
-        tooltip: 'Open ${deeplink.name}',
-        onPressed: isOpening ? null : onOpen,
-        icon: isOpening
-            ? const SizedBox.square(
-                dimension: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Icon(Icons.open_in_new),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.md),
+            child: Row(
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFFBEB),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(color: const Color(0xFFFDE68A)),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.all(AppSpacing.sm),
+                    child: Icon(Icons.star, color: Color(0xFFF59E0B)),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        deeplink.name,
+                        style: textTheme.titleMedium?.copyWith(
+                          color: const Color(0xFF0F172A),
+                          fontWeight: FontWeight.w800,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        deeplink.url,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          fontFamily: 'monospace',
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFF06B6D4),
+                    foregroundColor: const Color(0xFF020617),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                    ),
+                    minimumSize: const Size(0, 40),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                  ),
+                  onPressed: isOpening ? null : onOpen,
+                  icon: isOpening
+                      ? const SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.rocket_launch, size: 18),
+                  label: const Text('Open'),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -1410,35 +1569,301 @@ class _ProjectDashboardItem extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return ListTile(
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      leading: const Icon(Icons.folder_outlined),
-      title: Text(
-        project.name,
-        style: textTheme.titleSmall,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Text(
-        _deeplinkCountLabel,
-        style: textTheme.bodyMedium?.copyWith(
-          color: colorScheme.onSurfaceVariant,
+    return Material(
+      color: Colors.transparent,
+      child: Ink(
+        decoration: _homeCardDecoration(),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          onTap: onTap,
+          child: SizedBox(
+            height: 144,
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.md),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE0F7FA),
+                          borderRadius: BorderRadius.circular(AppRadius.md),
+                        ),
+                        child: const Padding(
+                          padding: EdgeInsets.all(AppSpacing.sm),
+                          child: Icon(
+                            Icons.folder_outlined,
+                            color: Color(0xFF0891B2),
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      _CountPill(label: _deeplinkCountLabel),
+                    ],
+                  ),
+                  const Spacer(),
+                  Text(
+                    project.name,
+                    style: textTheme.titleMedium?.copyWith(
+                      color: const Color(0xFF0F172A),
+                      fontWeight: FontWeight.w800,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    DateTimeFormatter.compactDateTime(project.updatedAt),
+                    style: textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
       ),
-      trailing: const Icon(Icons.chevron_right),
     );
   }
 
   String get _deeplinkCountLabel {
     if (deeplinkCount == 1) {
-      return '1 deeplink';
+      return '1 link';
     }
 
-    return '$deeplinkCount deeplinks';
+    return '$deeplinkCount links';
+  }
+}
+
+class _TerminalDispatchCard extends StatelessWidget {
+  const _TerminalDispatchCard({required this.url, required this.onCopyCommand});
+
+  final String url;
+  final Future<void> Function(String text, String successMessage) onCopyCommand;
+
+  @override
+  Widget build(BuildContext context) {
+    final command = buildAdbCommand(url);
+    final textTheme = Theme.of(context).textTheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F172A),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: const Color(0xFF1E293B)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x330F172A),
+            blurRadius: 20,
+            offset: Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.md),
+        child: Column(
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.terminal, color: Color(0xFF22D3EE), size: 20),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Terminal Dispatch',
+                    style: textTheme.titleSmall?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                Text(
+                  'ADB / XCRUN',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: const Color(0xFF22D3EE),
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.4,
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.sm),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: const Color(0xFF020617),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: const Color(0xFF1E293B)),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: AppSpacing.md,
+                  vertical: AppSpacing.sm,
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      r'$',
+                      style: textTheme.bodySmall?.copyWith(
+                        color: const Color(0xFF22D3EE),
+                        fontFamily: 'monospace',
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Expanded(
+                      child: Text(
+                        command,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.bodySmall?.copyWith(
+                          color: const Color(0xFFCBD5E1),
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Copy ADB command',
+                      onPressed: () =>
+                          onCopyCommand(command, 'ADB command copied.'),
+                      icon: const Icon(
+                        Icons.content_copy,
+                        color: Color(0xFF94A3B8),
+                        size: 18,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusDot extends StatelessWidget {
+  const _StatusDot({required this.color});
+
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: color,
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 8),
+        ],
+      ),
+      child: const SizedBox.square(dimension: 12),
+    );
+  }
+}
+
+class _SchemeChip extends StatelessWidget {
+  const _SchemeChip({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Uri.tryParse(url)?.scheme;
+
+    if (scheme == null || scheme.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFE0F7FA),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFA5F3FC)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        child: Text(
+          scheme.toUpperCase(),
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: const Color(0xFF0E7490),
+            fontFamily: 'monospace',
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.8,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _CountPill extends StatelessWidget {
+  const _CountPill({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            color: const Color(0xFF475569),
+            fontFamily: 'monospace',
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+BoxDecoration _homeCardDecoration() {
+  return BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(AppRadius.lg),
+    border: Border.all(color: const Color(0xFFE2E8F0)),
+    boxShadow: const [
+      BoxShadow(color: Color(0x0A0F172A), blurRadius: 12, offset: Offset(0, 2)),
+    ],
+  );
+}
+
+class _HomeBrandIcon extends StatelessWidget {
+  const _HomeBrandIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF22D3EE), Color(0xFF4F46E5)],
+        ),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x3322D3EE),
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: const SizedBox.square(
+        dimension: 44,
+        child: Icon(Icons.link, color: Colors.white),
+      ),
+    );
   }
 }
 

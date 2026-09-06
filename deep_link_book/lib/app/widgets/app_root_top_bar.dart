@@ -10,6 +10,8 @@ class AppRootTopBar extends StatefulWidget implements PreferredSizeWidget {
     required this.onSearchQueryChanged,
     required this.onSearchClose,
     required this.onSettingsPressed,
+    this.eyebrow,
+    this.leading,
     this.actions = const [],
   });
 
@@ -20,6 +22,8 @@ class AppRootTopBar extends StatefulWidget implements PreferredSizeWidget {
   final ValueChanged<String> onSearchQueryChanged;
   final VoidCallback onSearchClose;
   final VoidCallback onSettingsPressed;
+  final String? eyebrow;
+  final Widget? leading;
   final List<Widget> actions;
 
   @override
@@ -104,7 +108,15 @@ class _AppRootTopBarState extends State<AppRootTopBar> {
     }
 
     return AppBar(
-      title: Text(widget.title),
+      titleSpacing: widget.leading == null ? null : 0,
+      leadingWidth: widget.leading == null ? null : 72,
+      leading: widget.leading == null
+          ? null
+          : Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: widget.leading,
+            ),
+      title: _TopBarTitle(title: widget.title, eyebrow: widget.eyebrow),
       actions: [
         ...widget.actions,
         IconButton(
@@ -124,5 +136,45 @@ class _AppRootTopBarState extends State<AppRootTopBar> {
   void _closeSearch() {
     _searchFocusNode.unfocus();
     widget.onSearchClose();
+  }
+}
+
+class _TopBarTitle extends StatelessWidget {
+  const _TopBarTitle({required this.title, this.eyebrow});
+
+  final String title;
+  final String? eyebrow;
+
+  @override
+  Widget build(BuildContext context) {
+    final eyebrow = this.eyebrow;
+
+    if (eyebrow == null) {
+      return Text(title);
+    }
+
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          eyebrow.toUpperCase(),
+          style: textTheme.labelSmall?.copyWith(
+            color: colorScheme.primary,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 2,
+          ),
+        ),
+        Text(
+          title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+      ],
+    );
   }
 }
