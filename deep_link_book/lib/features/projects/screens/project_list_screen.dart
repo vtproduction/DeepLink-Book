@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
+import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_spacing.dart';
+import '../../../app/widgets/app_brand_icon.dart';
 import '../../../app/widgets/app_root_top_bar.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/widgets/app_error_state.dart';
@@ -40,13 +42,15 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
       },
       child: Scaffold(
         appBar: AppRootTopBar(
-          title: 'Projects',
+          title: 'Deep Link Book',
           searchQuery: _searchQuery,
           isSearching: _isSearching,
           onSearchPressed: _startSearch,
           onSearchQueryChanged: _updateSearchQuery,
           onSearchClose: _closeSearch,
           onSettingsPressed: _openSettings,
+          eyebrow: 'Dev Suite',
+          leading: const AppBrandIcon(),
         ),
         body: projects.when(
           loading: () => const AppLoadingState(),
@@ -70,48 +74,73 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
             );
             final hasSearchQuery = _searchQuery.trim().isNotEmpty;
 
-            if (visibleProjects.isEmpty) {
-              if (hasSearchQuery) {
-                return Center(
-                  child: AppEmptyState(
-                    icon: Icons.search_off,
-                    title: 'No projects found for "$_searchQuery"',
-                    description: 'Try a different search term.',
-                  ),
-                );
-              }
-            }
-
             final itemCount = visibleProjects.length + (hasSearchQuery ? 0 : 1);
 
-            return GridView.builder(
-              padding: const EdgeInsets.all(AppSpacing.md),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: AppSpacing.md,
-                mainAxisSpacing: AppSpacing.md,
-                childAspectRatio: 1,
-              ),
-              itemCount: itemCount,
-              itemBuilder: (context, index) {
-                if (!hasSearchQuery && index == 0) {
-                  return NewProjectGridItem(
-                    onTap: () => _showProjectDialog(context),
-                  );
-                }
-
-                final projectIndex = hasSearchQuery ? index : index - 1;
-                final project = visibleProjects[projectIndex];
-
-                return ProjectGridItem(
-                  project: project,
-                  deeplinkCount: deeplinkCounts[project.id] ?? 0,
-                  onTap: () => context.pushNamed(
-                    AppRoute.projectDetail.name,
-                    pathParameters: {'projectId': project.id.toString()},
+            return CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.fromLTRB(
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    AppSpacing.md,
+                    0,
                   ),
-                );
-              },
+                  sliver: SliverToBoxAdapter(
+                    child: _ProjectsPageHeader(projectCount: projects.length),
+                  ),
+                ),
+                if (visibleProjects.isEmpty && hasSearchQuery)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: AppEmptyState(
+                        icon: Icons.search_off,
+                        title: 'No projects found for "$_searchQuery"',
+                        description: 'Try a different search term.',
+                      ),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.fromLTRB(
+                      AppSpacing.md,
+                      AppSpacing.lg,
+                      AppSpacing.md,
+                      AppSpacing.xl,
+                    ),
+                    sliver: SliverGrid.builder(
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: AppSpacing.md,
+                            mainAxisSpacing: AppSpacing.md,
+                            mainAxisExtent: 180,
+                          ),
+                      itemCount: itemCount,
+                      itemBuilder: (context, index) {
+                        if (!hasSearchQuery && index == 0) {
+                          return NewProjectGridItem(
+                            onTap: () => _showProjectDialog(context),
+                          );
+                        }
+
+                        final projectIndex = hasSearchQuery ? index : index - 1;
+                        final project = visibleProjects[projectIndex];
+
+                        return ProjectGridItem(
+                          project: project,
+                          deeplinkCount: deeplinkCounts[project.id] ?? 0,
+                          onTap: () => context.pushNamed(
+                            AppRoute.projectDetail.name,
+                            pathParameters: {
+                              'projectId': project.id.toString(),
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
             );
           },
         ),
@@ -188,6 +217,39 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
       SnackBar(
         content: Text(project == null ? 'Project created.' : 'Project saved.'),
       ),
+    );
+  }
+}
+
+class _ProjectsPageHeader extends StatelessWidget {
+  const _ProjectsPageHeader({required this.projectCount});
+
+  final int projectCount;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final projectLabel = projectCount == 1 ? 'project' : 'projects';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Projects',
+          style: textTheme.headlineMedium?.copyWith(
+            color: const Color(0xFF0F172A),
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xs),
+        Text(
+          '$projectCount active workspace $projectLabel',
+          style: textTheme.bodyMedium?.copyWith(
+            color: const Color(0xFF64748B),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
     );
   }
 }

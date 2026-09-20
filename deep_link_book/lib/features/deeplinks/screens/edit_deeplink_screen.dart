@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../app/theme/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/widgets/app_empty_state.dart';
 import '../../../core/widgets/app_loading_state.dart';
@@ -109,33 +108,32 @@ class _EditDeeplinkFormContentState
     _syncProjectSelection(projects);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Deeplink')),
+      appBar: AppBar(
+        shape: const Border(bottom: BorderSide(color: Color(0xFFDCEDEF))),
+        title: const _EditDeeplinkAppBarTitle(),
+      ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: DeeplinkForm(
-            formKey: _formKey,
-            nameController: _nameController,
-            urlController: _urlController,
-            descriptionController: _descriptionController,
-            isSaving: _isSaving,
-            onCancel: _closeScreen,
-            onSubmit: _updateDeeplink,
-            submitLabel: 'Save',
-            projectField: DeeplinkOrganizationFields(
-              projects: projects,
-              selectedProjectId: _selectedProjectId,
-              enabled: !_isSaving,
-              onProjectChanged: (projectId) {
-                setState(() {
-                  _selectedProjectId = projectId;
-                  _selectedEnvironmentId =
-                      projectId == widget.deeplink.projectId
-                      ? widget.deeplink.environmentId
-                      : null;
-                });
-              },
-            ),
+        child: DeeplinkForm(
+          formKey: _formKey,
+          nameController: _nameController,
+          urlController: _urlController,
+          descriptionController: _descriptionController,
+          isSaving: _isSaving,
+          onCancel: _closeScreen,
+          onSubmit: _updateDeeplink,
+          submitLabel: 'Save Deeplink',
+          projectField: DeeplinkOrganizationFields(
+            projects: projects,
+            selectedProjectId: _selectedProjectId,
+            enabled: !_isSaving,
+            onProjectChanged: (projectId) {
+              setState(() {
+                _selectedProjectId = projectId;
+                _selectedEnvironmentId = projectId == widget.deeplink.projectId
+                    ? widget.deeplink.environmentId
+                    : null;
+              });
+            },
           ),
         ),
       ),
@@ -254,6 +252,33 @@ class _EditDeeplinkFormContentState
         });
       });
     });
+  }
+}
+
+class _EditDeeplinkAppBarTitle extends StatelessWidget {
+  const _EditDeeplinkAppBarTitle();
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Edit Deeplink',
+          style: textTheme.titleLarge?.copyWith(
+            color: const Color(0xFF0F172A),
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Text(
+          'Update link details and URL',
+          style: textTheme.bodySmall?.copyWith(color: const Color(0xFF64748B)),
+        ),
+      ],
+    );
   }
 }
 

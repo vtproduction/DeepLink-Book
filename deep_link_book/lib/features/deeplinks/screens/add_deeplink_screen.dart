@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../app/theme/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../data/deeplink_repository.dart';
 import '../widgets/deeplink_organization_fields.dart';
@@ -51,30 +50,30 @@ class _AddDeeplinkScreenState extends ConsumerState<AddDeeplinkScreen> {
     _syncProjectSelection(projects);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Deeplink')),
+      appBar: AppBar(
+        shape: const Border(bottom: BorderSide(color: Color(0xFFDCEDEF))),
+        title: const _AddDeeplinkAppBarTitle(),
+      ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          child: DeeplinkForm(
-            formKey: _formKey,
-            nameController: _nameController,
-            urlController: _urlController,
-            descriptionController: _descriptionController,
-            isSaving: _isSaving,
-            onCancel: _closeScreen,
-            onSubmit: _saveDeeplink,
-            submitLabel: 'Save',
-            projectField: DeeplinkOrganizationFields(
-              projects: projects,
-              selectedProjectId: _selectedProjectId,
-              enabled: !_isSaving,
-              onProjectChanged: (projectId) {
-                setState(() {
-                  _selectedProjectId = projectId;
-                  _selectedEnvironmentId = null;
-                });
-              },
-            ),
+        child: DeeplinkForm(
+          formKey: _formKey,
+          nameController: _nameController,
+          urlController: _urlController,
+          descriptionController: _descriptionController,
+          isSaving: _isSaving,
+          onCancel: _closeScreen,
+          onSubmit: _saveDeeplink,
+          submitLabel: 'Save Deeplink',
+          projectField: DeeplinkOrganizationFields(
+            projects: projects,
+            selectedProjectId: _selectedProjectId,
+            enabled: !_isSaving,
+            onProjectChanged: (projectId) {
+              setState(() {
+                _selectedProjectId = projectId;
+                _selectedEnvironmentId = null;
+              });
+            },
           ),
         ),
       ),
@@ -174,5 +173,32 @@ class _AddDeeplinkScreenState extends ConsumerState<AddDeeplinkScreen> {
         });
       });
     });
+  }
+}
+
+class _AddDeeplinkAppBarTitle extends StatelessWidget {
+  const _AddDeeplinkAppBarTitle();
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Add Deeplink',
+          style: textTheme.titleLarge?.copyWith(
+            color: const Color(0xFF0F172A),
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Text(
+          'Create a reusable app link',
+          style: textTheme.bodySmall?.copyWith(color: const Color(0xFF64748B)),
+        ),
+      ],
+    );
   }
 }

@@ -249,7 +249,6 @@ class _SchemePill extends StatelessWidget {
             color: const Color(0xFF006874),
             fontFamily: 'monospace',
             fontWeight: FontWeight.w800,
-            letterSpacing: 0.8,
           ),
         ),
       ),

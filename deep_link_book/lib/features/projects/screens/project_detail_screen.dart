@@ -4,9 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../app/router.dart';
+import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_spacing.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/deeplink/deeplink_launcher.dart';
+import '../../../core/utils/date_time_formatter.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_error_state.dart';
 import '../../../core/widgets/app_empty_state.dart';
@@ -91,6 +93,7 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
+          shape: const Border(bottom: BorderSide(color: Color(0xFFDCEDEF))),
           title: _isSearching
               ? TextField(
                   controller: _searchController,
@@ -103,7 +106,9 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
                   textInputAction: TextInputAction.search,
                   onChanged: _updateSearchQuery,
                 )
-              : Text(project?.name ?? 'Project'),
+              : _ProjectDetailAppBarTitle(
+                  projectName: project?.name ?? 'Project',
+                ),
           actions: [
             if (_isSearching)
               IconButton(
@@ -162,6 +167,11 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
             : FloatingActionButton(
                 tooltip: 'Add deeplink to ${project.name}',
                 onPressed: () => _addDeeplinkToProject(project),
+                backgroundColor: const Color(0xFF0EA5E9),
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                ),
                 child: const Icon(Icons.add),
               ),
       ),
@@ -209,22 +219,46 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
       children: [
         _ProjectDetailHeader(project: project, deeplinkCount: deeplinkCount),
         const SizedBox(height: AppSpacing.lg),
-        Text('Deeplinks', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: AppSpacing.sm),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text(
+              'Deeplinks',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                color: const Color(0xFF0F172A),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              '$deeplinkCount Total',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                color: const Color(0xFF475569),
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.md),
         if (projectDeeplinks.isEmpty)
-          _ProjectDetailEmptyDeeplinks(
-            icon: hasSearchQuery ? Icons.search_off : Icons.link_off,
-            title: hasSearchQuery
-                ? 'No results for "$_searchQuery"'
-                : 'No deeplinks yet',
-            description: hasSearchQuery
-                ? 'Try a different search term.'
-                : 'Add a deeplink to this project.',
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
+            child: AppEmptyState(
+              icon: hasSearchQuery ? Icons.search_off : Icons.link_off,
+              title: hasSearchQuery
+                  ? 'No results for "$_searchQuery"'
+                  : 'No deeplinks yet',
+              description: hasSearchQuery
+                  ? 'Try a different search term.'
+                  : 'Add a deeplink to this project.',
+            ),
           )
         else
           for (var index = 0; index < projectDeeplinks.length; index++) ...[
             DeeplinkListItem(
               deeplink: projectDeeplinks[index],
+              cardLayout: true,
               isProcessing: _processingDeeplinkId == projectDeeplinks[index].id,
               isFavoriteProcessing: _processingFavoriteIds.contains(
                 projectDeeplinks[index].id,
@@ -243,7 +277,8 @@ class _ProjectDetailScreenState extends ConsumerState<ProjectDetailScreen> {
               onDelete: () =>
                   _confirmAndDeleteDeeplink(projectDeeplinks[index]),
             ),
-            if (index != projectDeeplinks.length - 1) const Divider(height: 1),
+            if (index != projectDeeplinks.length - 1)
+              const SizedBox(height: AppSpacing.md),
           ],
       ],
     );
@@ -683,6 +718,40 @@ class _ProjectDetailFallbackAppBar extends StatelessWidget
   }
 }
 
+class _ProjectDetailAppBarTitle extends StatelessWidget {
+  const _ProjectDetailAppBarTitle({required this.projectName});
+
+  final String projectName;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'PROJECT SUITE',
+          style: textTheme.labelSmall?.copyWith(
+            color: const Color(0xFF0891B2),
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        Text(
+          projectName,
+          style: textTheme.titleMedium?.copyWith(
+            color: const Color(0xFF0F172A),
+            fontWeight: FontWeight.w800,
+          ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+}
+
 class _ProjectDetailHeader extends StatelessWidget {
   const _ProjectDetailHeader({
     required this.project,
@@ -694,31 +763,141 @@ class _ProjectDetailHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final description = project.description;
+    final description = project.description?.trim();
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(project.name, style: textTheme.headlineSmall),
-        if (description != null && description.trim().isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            description,
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFBAEEF2)),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D0F172A),
+            blurRadius: 20,
+            offset: Offset(0, 6),
           ),
         ],
-        const SizedBox(height: AppSpacing.sm),
-        Text(
-          _deeplinkCountLabel,
-          style: textTheme.labelLarge?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFECFEFF),
+                    border: Border.all(color: const Color(0xFFA5F3FC)),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                  ),
+                  child: const SizedBox.square(
+                    dimension: 56,
+                    child: Icon(
+                      Icons.folder_outlined,
+                      color: Color(0xFF0891B2),
+                      size: 28,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: Color(0xFF06B6D4),
+                              shape: BoxShape.circle,
+                            ),
+                            child: SizedBox.square(dimension: 8),
+                          ),
+                          const SizedBox(width: AppSpacing.sm),
+                          Flexible(
+                            child: Text(
+                              'Project Workspace',
+                              style: textTheme.labelMedium?.copyWith(
+                                color: const Color(0xFF0E7490),
+                                fontWeight: FontWeight.w700,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: AppSpacing.xs),
+                      Text(
+                        project.name,
+                        style: textTheme.headlineSmall?.copyWith(
+                          color: const Color(0xFF0F172A),
+                          fontWeight: FontWeight.w800,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFCFFAFE),
+                    border: Border.all(color: const Color(0xFF67E8F9)),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.md,
+                      vertical: AppSpacing.sm,
+                    ),
+                    child: Text(
+                      _deeplinkCountLabel,
+                      style: textTheme.labelMedium?.copyWith(
+                        color: const Color(0xFF155E75),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: AppSpacing.md),
+            Text(
+              description == null || description.isEmpty
+                  ? 'No description provided.'
+                  : description,
+              style: textTheme.bodyMedium?.copyWith(
+                color: const Color(0xFF334155),
+                height: 1.5,
+              ),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const Divider(height: 1, color: Color(0xFFE2E8F0)),
+            const SizedBox(height: AppSpacing.sm),
+            Row(
+              children: [
+                const Icon(Icons.schedule, color: Color(0xFF0891B2), size: 17),
+                const SizedBox(width: AppSpacing.sm),
+                Expanded(
+                  child: Text(
+                    'Updated ${DateTimeFormatter.compactDateTime(project.updatedAt)}',
+                    style: textTheme.labelMedium?.copyWith(
+                      color: const Color(0xFF475569),
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 
@@ -728,47 +907,6 @@ class _ProjectDetailHeader extends StatelessWidget {
     }
 
     return '$deeplinkCount deeplinks';
-  }
-}
-
-class _ProjectDetailEmptyDeeplinks extends StatelessWidget {
-  const _ProjectDetailEmptyDeeplinks({
-    required this.icon,
-    required this.title,
-    required this.description,
-  });
-
-  final IconData icon;
-  final String title;
-  final String description;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xl),
-      child: Column(
-        children: [
-          Icon(icon, size: 40, color: colorScheme.primary),
-          const SizedBox(height: AppSpacing.md),
-          Text(
-            title,
-            style: textTheme.titleMedium,
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          Text(
-            description,
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-            textAlign: TextAlign.center,
-          ),
-        ],
-      ),
-    );
   }
 }
 

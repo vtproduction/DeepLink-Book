@@ -155,7 +155,10 @@ class DeeplinkListItem extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  _FavoriteIndicator(isLoading: isFavoriteProcessing),
+                  _FavoriteIndicator(
+                    isFavorite: deeplink.isFavorite,
+                    isLoading: isFavoriteProcessing,
+                  ),
                   const SizedBox(width: AppSpacing.sm),
                   Expanded(
                     child: Text(
@@ -352,15 +355,16 @@ class DeeplinkListItem extends StatelessWidget {
 }
 
 class _FavoriteIndicator extends StatelessWidget {
-  const _FavoriteIndicator({required this.isLoading});
+  const _FavoriteIndicator({required this.isFavorite, required this.isLoading});
 
+  final bool isFavorite;
   final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF7E6),
+        color: isFavorite ? const Color(0xFFFFF7E6) : const Color(0xFFF8FAFC),
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: SizedBox.square(
@@ -371,7 +375,13 @@ class _FavoriteIndicator extends StatelessWidget {
                   dimension: 16,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : const Icon(Icons.star, color: Color(0xFFF59E0B), size: 20),
+              : Icon(
+                  isFavorite ? Icons.star : Icons.star_border,
+                  color: isFavorite
+                      ? const Color(0xFFF59E0B)
+                      : const Color(0xFF94A3B8),
+                  size: 20,
+                ),
         ),
       ),
     );

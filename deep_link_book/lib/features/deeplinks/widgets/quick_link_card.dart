@@ -53,7 +53,6 @@ class QuickLinkCard extends StatelessWidget {
                     style: textTheme.labelSmall?.copyWith(
                       color: const Color(0xFF67E8F9),
                       fontWeight: FontWeight.w800,
-                      letterSpacing: 1.8,
                       fontFamily: 'monospace',
                     ),
                   ),

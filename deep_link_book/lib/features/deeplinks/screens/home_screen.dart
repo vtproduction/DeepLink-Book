@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_spacing.dart';
+import '../../../app/widgets/app_brand_icon.dart';
 import '../../../app/widgets/app_root_top_bar.dart';
 import '../../../core/deeplink/deeplink_launcher.dart';
 import '../../../core/database/app_database.dart';
@@ -100,7 +101,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         }
       },
       child: Scaffold(
-        backgroundColor: widget.favoritesOnly ? null : const Color(0xFFF3F6FA),
         appBar: AppRootTopBar(
           title: widget.favoritesOnly ? widget.title : 'Deep Link Book',
           searchQuery: _searchQuery,
@@ -110,7 +110,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
           onSearchClose: _closeSearch,
           onSettingsPressed: _openSettings,
           eyebrow: widget.favoritesOnly ? null : 'Dev Suite',
-          leading: widget.favoritesOnly ? null : const _HomeBrandIcon(),
+          leading: widget.favoritesOnly ? null : const AppBrandIcon(),
         ),
         body: widget.favoritesOnly
             ? _buildDeeplinkListBody(deeplinks)
@@ -1684,7 +1684,6 @@ class _TerminalDispatchCard extends StatelessWidget {
                   style: textTheme.labelSmall?.copyWith(
                     color: const Color(0xFF22D3EE),
                     fontWeight: FontWeight.w800,
-                    letterSpacing: 1.4,
                     fontFamily: 'monospace',
                   ),
                 ),
@@ -1792,7 +1791,6 @@ class _SchemeChip extends StatelessWidget {
             color: const Color(0xFF0E7490),
             fontFamily: 'monospace',
             fontWeight: FontWeight.w800,
-            letterSpacing: 0.8,
           ),
         ),
       ),
@@ -1836,35 +1834,6 @@ BoxDecoration _homeCardDecoration() {
       BoxShadow(color: Color(0x0A0F172A), blurRadius: 12, offset: Offset(0, 2)),
     ],
   );
-}
-
-class _HomeBrandIcon extends StatelessWidget {
-  const _HomeBrandIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF22D3EE), Color(0xFF4F46E5)],
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x3322D3EE),
-            blurRadius: 14,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: const SizedBox.square(
-        dimension: 44,
-        child: Icon(Icons.link, color: Colors.white),
-      ),
-    );
-  }
 }
 
 enum DeeplinkSortOption {

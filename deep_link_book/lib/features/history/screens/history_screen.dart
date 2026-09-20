@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_spacing.dart';
+import '../../../app/widgets/app_brand_icon.dart';
 import '../../../app/widgets/app_root_top_bar.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/deeplink/deeplink_launcher.dart';
@@ -49,11 +50,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF3F9F9),
         appBar: AppRootTopBar(
           title: 'Deep Link Book',
           eyebrow: 'Dev Suite',
-          leading: const _HistoryBrandIcon(),
+          leading: const AppBrandIcon(),
           searchQuery: _searchQuery,
           isSearching: _isSearching,
           onSearchPressed: _startSearch,
@@ -561,7 +561,6 @@ class _HistoryGroupHeader extends StatelessWidget {
               color: const Color(0xFF94A3B8),
               fontFamily: 'monospace',
               fontWeight: FontWeight.w800,
-              letterSpacing: 1.4,
             ),
           ),
         ),
@@ -573,32 +572,6 @@ class _HistoryGroupHeader extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _HistoryBrandIcon extends StatelessWidget {
-  const _HistoryBrandIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF22D3EE), Color(0xFF2563EB)],
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x3322D3EE),
-            blurRadius: 14,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: const Icon(Icons.link, color: Colors.white),
     );
   }
 }

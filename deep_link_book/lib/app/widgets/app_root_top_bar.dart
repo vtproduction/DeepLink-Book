@@ -119,16 +119,17 @@ class _AppRootTopBarState extends State<AppRootTopBar> {
       title: _TopBarTitle(title: widget.title, eyebrow: widget.eyebrow),
       actions: [
         ...widget.actions,
-        IconButton(
+        _TopBarAction(
           tooltip: 'Search ${widget.title}',
           onPressed: widget.onSearchPressed,
-          icon: const Icon(Icons.search),
+          icon: Icons.search,
         ),
-        IconButton(
+        _TopBarAction(
           tooltip: 'Settings',
           onPressed: widget.onSettingsPressed,
-          icon: const Icon(Icons.settings),
+          icon: Icons.settings_outlined,
         ),
+        const SizedBox(width: 8),
       ],
     );
   }
@@ -136,6 +137,37 @@ class _AppRootTopBarState extends State<AppRootTopBar> {
   void _closeSearch() {
     _searchFocusNode.unfocus();
     widget.onSearchClose();
+  }
+}
+
+class _TopBarAction extends StatelessWidget {
+  const _TopBarAction({
+    required this.tooltip,
+    required this.onPressed,
+    required this.icon,
+  });
+
+  final String tooltip;
+  final VoidCallback onPressed;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 4),
+      child: IconButton.outlined(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        style: IconButton.styleFrom(
+          backgroundColor: colorScheme.surfaceContainerLowest,
+          foregroundColor: colorScheme.onSurfaceVariant,
+          side: BorderSide(color: colorScheme.outlineVariant),
+        ),
+        icon: Icon(icon),
+      ),
+    );
   }
 }
 
@@ -165,7 +197,6 @@ class _TopBarTitle extends StatelessWidget {
           style: textTheme.labelSmall?.copyWith(
             color: colorScheme.primary,
             fontWeight: FontWeight.w800,
-            letterSpacing: 2,
           ),
         ),
         Text(

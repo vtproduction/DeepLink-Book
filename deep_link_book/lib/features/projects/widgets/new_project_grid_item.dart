@@ -14,38 +14,81 @@ class NewProjectGridItem extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return Card(
+      margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
-      color: colorScheme.primaryContainer,
+      color: const Color(0xFFD9FBF4),
+      surfaceTintColor: Colors.transparent,
+      elevation: 1,
+      shadowColor: const Color(0x1A0F766E),
       shape: RoundedRectangleBorder(
-        side: BorderSide(color: colorScheme.primary.withValues(alpha: 0.35)),
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        side: const BorderSide(color: Color(0xFF5EEAD4), width: 1.5),
+        borderRadius: BorderRadius.circular(AppRadius.lg),
       ),
       child: InkWell(
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(AppSpacing.md),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: colorScheme.surface,
-                  shape: BoxShape.circle,
+              Align(
+                alignment: Alignment.centerRight,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFC0F4EA),
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: 2,
+                    ),
+                    child: Text(
+                      'QUICK ADD',
+                      style: textTheme.labelSmall?.copyWith(
+                        color: const Color(0xFF115E59),
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.sm),
-                  child: Icon(Icons.add, color: colorScheme.primary, size: 28),
+              ),
+              const Spacer(),
+              DecoratedBox(
+                decoration: const BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Color(0x1A0F766E),
+                      blurRadius: 10,
+                      offset: Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: SizedBox.square(
+                  dimension: 48,
+                  child: Icon(Icons.add, color: colorScheme.primary, size: 30),
                 ),
               ),
               const SizedBox(height: AppSpacing.sm),
               Text(
                 'New Project',
                 style: textTheme.titleSmall?.copyWith(
-                  color: colorScheme.onPrimaryContainer,
-                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF0F172A),
+                  fontWeight: FontWeight.w800,
                 ),
                 textAlign: TextAlign.center,
               ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Create folder or suite',
+                style: textTheme.labelSmall?.copyWith(
+                  color: const Color(0xFF64748B),
+                  fontWeight: FontWeight.w500,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const Spacer(),
             ],
           ),
         ),

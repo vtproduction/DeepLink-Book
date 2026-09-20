@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../app/router.dart';
 import '../../../app/theme/app_radius.dart';
 import '../../../app/theme/app_spacing.dart';
+import '../../../app/widgets/app_brand_icon.dart';
 import '../../../app/widgets/app_root_top_bar.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/deeplink/deeplink_launcher.dart';
@@ -50,7 +51,6 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFFF2F8F9),
         appBar: AppRootTopBar(
           title: 'Deep Link Book',
           searchQuery: _searchQuery,
@@ -60,7 +60,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
           onSearchClose: _closeSearch,
           onSettingsPressed: _openSettings,
           eyebrow: 'Dev Suite',
-          leading: const _FavoritesBrandIcon(),
+          leading: const AppBrandIcon(),
         ),
         body: deeplinks.when(
           loading: () => const AppLoadingState(),
@@ -536,35 +536,6 @@ class _FavoritesPageHeader extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _FavoritesBrandIcon extends StatelessWidget {
-  const _FavoritesBrandIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.bottomLeft,
-          end: Alignment.topRight,
-          colors: [Color(0xFF2563EB), Color(0xFF00E5FF)],
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x3300B4D8),
-            blurRadius: 12,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: const SizedBox.square(
-        dimension: 40,
-        child: Icon(Icons.link, color: Colors.white, size: 22),
-      ),
     );
   }
 }
