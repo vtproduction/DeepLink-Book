@@ -18,6 +18,7 @@ class AppErrorState extends StatelessWidget {
   Widget build(BuildContext context) {
     return AppEmptyState(
       icon: Icons.error_outline,
+      iconColor: Theme.of(context).colorScheme.error,
       title: title,
       description: description,
       action: onRetry == null

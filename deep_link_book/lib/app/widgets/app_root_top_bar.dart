@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../theme/app_radius.dart';
+import '../theme/app_spacing.dart';
+
 class AppRootTopBar extends StatefulWidget implements PreferredSizeWidget {
   const AppRootTopBar({
     super.key,
@@ -93,6 +96,7 @@ class _AppRootTopBarState extends State<AppRootTopBar> {
           decoration: const InputDecoration(
             hintText: 'Search',
             border: InputBorder.none,
+            filled: false,
           ),
           textInputAction: TextInputAction.search,
           onChanged: widget.onSearchQueryChanged,
@@ -113,7 +117,7 @@ class _AppRootTopBarState extends State<AppRootTopBar> {
       leading: widget.leading == null
           ? null
           : Padding(
-              padding: const EdgeInsets.only(left: 16),
+              padding: const EdgeInsets.only(left: AppSpacing.md),
               child: widget.leading,
             ),
       title: _TopBarTitle(title: widget.title, eyebrow: widget.eyebrow),
@@ -129,7 +133,7 @@ class _AppRootTopBarState extends State<AppRootTopBar> {
           onPressed: widget.onSettingsPressed,
           icon: Icons.settings_outlined,
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: AppSpacing.sm),
       ],
     );
   }
@@ -156,16 +160,20 @@ class _TopBarAction extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
-      padding: const EdgeInsets.only(left: 4),
+      padding: const EdgeInsets.only(left: AppSpacing.xs),
       child: IconButton.outlined(
         tooltip: tooltip,
         onPressed: onPressed,
         style: IconButton.styleFrom(
-          backgroundColor: colorScheme.surfaceContainerLowest,
+          minimumSize: const Size.square(44),
+          backgroundColor: colorScheme.surfaceContainer,
           foregroundColor: colorScheme.onSurfaceVariant,
           side: BorderSide(color: colorScheme.outlineVariant),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+          ),
         ),
-        icon: Icon(icon),
+        icon: Icon(icon, size: 18),
       ),
     );
   }
@@ -196,14 +204,14 @@ class _TopBarTitle extends StatelessWidget {
           eyebrow.toUpperCase(),
           style: textTheme.labelSmall?.copyWith(
             color: colorScheme.primary,
-            fontWeight: FontWeight.w800,
+            fontFamily: 'monospace',
           ),
         ),
         Text(
           title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          style: textTheme.titleMedium,
         ),
       ],
     );

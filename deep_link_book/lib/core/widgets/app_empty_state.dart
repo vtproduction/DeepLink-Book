@@ -9,12 +9,14 @@ class AppEmptyState extends StatelessWidget {
     required this.title,
     this.description,
     this.action,
+    this.iconColor,
   });
 
   final IconData icon;
   final String title;
   final String? description;
   final Widget? action;
+  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
@@ -27,11 +29,11 @@ class AppEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 48, color: colorScheme.primary),
+            Icon(icon, size: 32, color: iconColor ?? colorScheme.primary),
             const SizedBox(height: AppSpacing.md),
             Text(
               title,
-              style: textTheme.titleLarge,
+              style: textTheme.titleMedium,
               textAlign: TextAlign.center,
             ),
             if (description != null) ...[

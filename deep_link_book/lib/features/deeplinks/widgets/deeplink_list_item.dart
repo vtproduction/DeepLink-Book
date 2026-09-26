@@ -39,117 +39,39 @@ class DeeplinkListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (cardLayout) {
-      return _buildCard(context);
-    }
-
     final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
+    final borderRadius = BorderRadius.circular(AppRadius.md);
 
-    return ListTile(
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.sm,
+    return Material(
+      color: cardLayout ? colorScheme.surface : Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: borderRadius,
+        side: cardLayout
+            ? BorderSide(color: colorScheme.outlineVariant)
+            : BorderSide.none,
       ),
-      leading: isFavoriteProcessing
-          ? const SizedBox.square(
-              dimension: 24,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          : Icon(
-              deeplink.isFavorite ? Icons.star : Icons.star_border,
-              color: deeplink.isFavorite
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
-            ),
-      title: Text(
-        deeplink.name,
-        style: textTheme.titleSmall,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-      ),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            deeplink.url,
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: AppSpacing.card,
+            vertical: cardLayout ? AppSpacing.card : AppSpacing.sm,
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  _usageMetadataLabel,
-                  style: textTheme.labelMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              IconButton(
-                tooltip: 'Open ${deeplink.name}',
-                onPressed: isOpening ? null : onOpen,
-                icon: isOpening
-                    ? const SizedBox.square(
-                        dimension: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.open_in_new),
-              ),
-              IconButton(
-                tooltip: 'Copy ${deeplink.name}',
-                onPressed: onCopy,
-                icon: const Icon(Icons.content_copy),
-              ),
-            ],
-          ),
-        ],
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (isProcessing)
-            const SizedBox.square(
-              dimension: 24,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            )
-          else
-            _buildOverflowMenu(context),
-        ],
+          child: _buildContent(context),
+        ),
       ),
     );
   }
 
-  Widget _buildCard(BuildContext context) {
+  Widget _buildContent(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(AppRadius.lg),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: Ink(
-          padding: const EdgeInsets.all(AppSpacing.md),
-          decoration: BoxDecoration(
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x0D091E42),
-                blurRadius: 20,
-                offset: Offset(0, 4),
-              ),
-            ],
-          ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -163,110 +85,89 @@ class DeeplinkListItem extends StatelessWidget {
                   Expanded(
                     child: Text(
                       deeplink.name,
-                      style: textTheme.titleMedium?.copyWith(
-                        color: const Color(0xFF0B1329),
-                        fontWeight: FontWeight.w800,
-                      ),
+                      style: textTheme.titleMedium,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const SizedBox(width: AppSpacing.sm),
+                  const SizedBox(width: AppSpacing.xs),
                   _SchemeBadge(label: _schemeLabel),
-                  if (isProcessing)
-                    const Padding(
-                      padding: EdgeInsets.only(left: AppSpacing.sm),
-                      child: SizedBox.square(
-                        dimension: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      ),
-                    )
-                  else
-                    _buildOverflowMenu(context),
                 ],
               ),
-              const SizedBox(height: AppSpacing.sm),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.sm,
-                  ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: Text(
-                      deeplink.url,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFF475569),
-                        fontFamily: 'monospace',
-                        height: 1.45,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
+              const SizedBox(height: AppSpacing.xs),
               Text(
-                _usageMetadataLabel,
-                style: textTheme.labelMedium?.copyWith(
-                  color: const Color(0xFF0F766E),
-                  fontWeight: FontWeight.w700,
+                deeplink.url,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontFamily: 'monospace',
+                  fontSize: 13,
+                  height: 18 / 13,
                 ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: AppSpacing.sm),
-              const Divider(height: 1, color: Color(0xFFEFF3F6)),
-              const SizedBox(height: AppSpacing.sm),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  IconButton(
-                    tooltip: 'Copy ${deeplink.name}',
-                    onPressed: onCopy,
-                    color: const Color(0xFF64748B),
-                    icon: const Icon(Icons.content_copy, size: 20),
-                  ),
-                  const SizedBox(width: AppSpacing.xs),
-                  FilledButton.icon(
-                    onPressed: isOpening ? null : onOpen,
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF0B1329),
-                      foregroundColor: const Color(0xFF00E5FF),
-                      disabledBackgroundColor: const Color(0xFFCBD5E1),
-                      disabledForegroundColor: const Color(0xFF64748B),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.md,
-                        vertical: AppSpacing.sm,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                      ),
-                    ),
-                    icon: isOpening
-                        ? const SizedBox.square(
-                            dimension: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Color(0xFF64748B),
-                            ),
-                          )
-                        : const Icon(Icons.open_in_new, size: 18),
-                    label: const Text('Launch'),
-                  ),
-                ],
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                _usageMetadataLabel,
+                style: textTheme.labelMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                  fontFamily: 'monospace',
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),
         ),
+        const SizedBox(width: AppSpacing.xs),
+        _buildActions(context),
+      ],
+    );
+  }
+
+  Widget _buildActions(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final style = IconButton.styleFrom(
+      minimumSize: const Size.square(44),
+      foregroundColor: colorScheme.onSurfaceVariant,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
+    );
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: 'Open ${deeplink.name}',
+          onPressed: isOpening ? null : onOpen,
+          style: style,
+          icon: isOpening
+              ? const SizedBox.square(
+                  dimension: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.open_in_new, size: 18),
+        ),
+        IconButton(
+          tooltip: 'Copy ${deeplink.name}',
+          onPressed: onCopy,
+          style: style,
+          icon: const Icon(Icons.content_copy, size: 18),
+        ),
+        if (isProcessing)
+          const SizedBox.square(
+            dimension: 44,
+            child: Center(
+              child: SizedBox.square(
+                dimension: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          )
+        else
+          SizedBox.square(dimension: 44, child: _buildOverflowMenu(context)),
+      ],
     );
   }
 
@@ -275,6 +176,8 @@ class DeeplinkListItem extends StatelessWidget {
 
     return PopupMenuButton<_DeeplinkListItemAction>(
       tooltip: 'More actions for ${deeplink.name}',
+      icon: const Icon(Icons.more_vert, size: 18),
+      padding: EdgeInsets.zero,
       onSelected: (action) {
         switch (action) {
           case _DeeplinkListItemAction.edit:
@@ -362,9 +265,13 @@ class _FavoriteIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: isFavorite ? const Color(0xFFFFF7E6) : const Color(0xFFF8FAFC),
+        color: isFavorite
+            ? colorScheme.primaryContainer
+            : colorScheme.surfaceContainer,
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: SizedBox.square(
@@ -378,9 +285,9 @@ class _FavoriteIndicator extends StatelessWidget {
               : Icon(
                   isFavorite ? Icons.star : Icons.star_border,
                   color: isFavorite
-                      ? const Color(0xFFF59E0B)
-                      : const Color(0xFF94A3B8),
-                  size: 20,
+                      ? colorScheme.onPrimaryContainer
+                      : colorScheme.onSurfaceVariant,
+                  size: 18,
                 ),
         ),
       ),
@@ -396,25 +303,25 @@ class _SchemeBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isHttps = label == 'HTTPS';
+    final colorScheme = Theme.of(context).colorScheme;
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: isHttps ? const Color(0xFFEEF2FF) : const Color(0xFFECFEFF),
-        border: Border.all(
-          color: isHttps ? const Color(0xFFC7D2FE) : const Color(0xFFA5F3FC),
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        color: isHttps
+            ? colorScheme.tertiaryContainer
+            : colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.sm,
-          vertical: AppSpacing.xs,
+          horizontal: AppSpacing.xs,
+          vertical: AppSpacing.xxs,
         ),
         child: Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: isHttps ? const Color(0xFF4F46E5) : const Color(0xFF0F766E),
-            fontWeight: FontWeight.w800,
+            color: isHttps ? const Color(0xFF004B73) : colorScheme.primary,
+            fontFamily: 'monospace',
           ),
         ),
       ),
