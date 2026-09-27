@@ -193,27 +193,15 @@ class _TopBarTitle extends StatelessWidget {
       return Text(title);
     }
 
-    final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          eyebrow.toUpperCase(),
-          style: textTheme.labelSmall?.copyWith(
-            color: colorScheme.primary,
-            fontFamily: 'monospace',
-          ),
-        ),
-        Text(
-          title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: textTheme.titleMedium,
-        ),
-      ],
+    return Padding(
+      padding: EdgeInsets.only(left: AppSpacing.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [Text(eyebrow, style: textTheme.titleLarge)],
+      ),
     );
   }
 }

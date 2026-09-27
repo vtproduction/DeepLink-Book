@@ -41,15 +41,16 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
         }
       },
       child: Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surface,
         appBar: AppRootTopBar(
-          title: 'Deep Link Book',
+          title: 'Deep Link Studio',
           searchQuery: _searchQuery,
           isSearching: _isSearching,
           onSearchPressed: _startSearch,
           onSearchQueryChanged: _updateSearchQuery,
           onSearchClose: _closeSearch,
           onSettingsPressed: _openSettings,
-          eyebrow: 'Dev Suite',
+          eyebrow: 'Projects',
           leading: const AppBrandIcon(),
         ),
         body: projects.when(
@@ -81,12 +82,14 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                 SliverPadding(
                   padding: const EdgeInsets.fromLTRB(
                     AppSpacing.md,
-                    AppSpacing.md,
+                    AppSpacing.xs,
                     AppSpacing.md,
                     0,
                   ),
                   sliver: SliverToBoxAdapter(
-                    child: _ProjectsPageHeader(projectCount: projects.length),
+                    child: _ProjectsPageHeader(
+                      projectCount: visibleProjects.length,
+                    ),
                   ),
                 ),
                 if (visibleProjects.isEmpty && hasSearchQuery)
@@ -104,7 +107,7 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                   SliverPadding(
                     padding: const EdgeInsets.fromLTRB(
                       AppSpacing.md,
-                      AppSpacing.lg,
+                      AppSpacing.card,
                       AppSpacing.md,
                       AppSpacing.xl,
                     ),
@@ -112,9 +115,9 @@ class _ProjectListScreenState extends ConsumerState<ProjectListScreen> {
                       gridDelegate:
                           const SliverGridDelegateWithFixedCrossAxisCount(
                             crossAxisCount: 2,
-                            crossAxisSpacing: AppSpacing.md,
-                            mainAxisSpacing: AppSpacing.md,
-                            mainAxisExtent: 180,
+                            crossAxisSpacing: AppSpacing.card,
+                            mainAxisSpacing: AppSpacing.card,
+                            mainAxisExtent: 176,
                           ),
                       itemCount: itemCount,
                       itemBuilder: (context, index) {
@@ -228,25 +231,19 @@ class _ProjectsPageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final projectLabel = projectCount == 1 ? 'project' : 'projects';
+    final suiteLabel = projectCount == 1 ? 'suite' : 'suites';
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
       children: [
+        Expanded(child: Text('Project Suites', style: textTheme.titleLarge)),
+        const SizedBox(width: AppSpacing.sm),
         Text(
-          'Projects',
-          style: textTheme.headlineMedium?.copyWith(
-            color: const Color(0xFF0F172A),
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          '$projectCount active workspace $projectLabel',
+          '$projectCount active $suiteLabel',
           style: textTheme.bodyMedium?.copyWith(
-            color: const Color(0xFF64748B),
-            fontWeight: FontWeight.w500,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
       ],

@@ -16,79 +16,57 @@ class NewProjectGridItem extends StatelessWidget {
     return Card(
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
-      color: const Color(0xFFD9FBF4),
+      color: colorScheme.surfaceContainer,
       surfaceTintColor: Colors.transparent,
-      elevation: 1,
-      shadowColor: const Color(0x1A0F766E),
+      elevation: 0.5,
+      shadowColor: const Color(0x140F172A),
       shape: RoundedRectangleBorder(
-        side: const BorderSide(color: Color(0xFF5EEAD4), width: 1.5),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: const EdgeInsets.all(AppSpacing.card),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Align(
-                alignment: Alignment.centerRight,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFC0F4EA),
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
-                      vertical: 2,
-                    ),
-                    child: Text(
-                      'QUICK ADD',
-                      style: textTheme.labelSmall?.copyWith(
-                        color: const Color(0xFF115E59),
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const Spacer(),
               DecoratedBox(
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Color(0x1A0F766E),
-                      blurRadius: 10,
-                      offset: Offset(0, 4),
-                    ),
-                  ],
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainerHigh,
+                  borderRadius: BorderRadius.circular(AppRadius.sm),
                 ),
                 child: SizedBox.square(
-                  dimension: 48,
-                  child: Icon(Icons.add, color: colorScheme.primary, size: 30),
+                  dimension: 40,
+                  child: Icon(Icons.add, color: colorScheme.primary, size: 18),
                 ),
-              ),
-              const SizedBox(height: AppSpacing.sm),
-              Text(
-                'New Project',
-                style: textTheme.titleSmall?.copyWith(
-                  color: const Color(0xFF0F172A),
-                  fontWeight: FontWeight.w800,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                'Create folder or suite',
-                style: textTheme.labelSmall?.copyWith(
-                  color: const Color(0xFF64748B),
-                  fontWeight: FontWeight.w500,
-                ),
-                textAlign: TextAlign.center,
               ),
               const Spacer(),
+              Text('New Project', style: textTheme.titleMedium),
+              const SizedBox(height: AppSpacing.xxs),
+              Text(
+                'Create a project workspace',
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const Spacer(),
+              Row(
+                children: [
+                  Text(
+                    'Create',
+                    style: textTheme.labelSmall?.copyWith(
+                      color: colorScheme.primary,
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Icon(
+                    Icons.arrow_forward,
+                    size: 13,
+                    color: colorScheme.primary,
+                  ),
+                ],
+              ),
             ],
           ),
         ),
