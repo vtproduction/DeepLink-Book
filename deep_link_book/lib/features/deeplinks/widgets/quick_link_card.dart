@@ -19,136 +19,119 @@ class QuickLinkCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFF0B1120), Color(0xFF111827), Color(0xFF1E1B4B)],
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: const Color(0xFF1E293B)),
+        color: colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(AppRadius.md),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x260F172A),
-            blurRadius: 24,
-            offset: Offset(0, 12),
+            color: Color(0x0D000000),
+            blurRadius: 1,
+            offset: Offset(0, 1),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.lg),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(AppSpacing.card),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _ClipboardPulse(),
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: colorScheme.secondary,
+                    borderRadius: BorderRadius.circular(AppRadius.sm),
+                  ),
+                  child: const SizedBox.square(
+                    dimension: 28,
+                    child: Icon(
+                      Icons.content_paste_go_outlined,
+                      size: 15,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
-                  child: Text(
-                    'Clipboard Link Detected'.toUpperCase(),
-                    style: textTheme.labelSmall?.copyWith(
-                      color: const Color(0xFF67E8F9),
-                      fontWeight: FontWeight.w800,
-                      fontFamily: 'monospace',
-                    ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Clipboard Deeplink Detected',
+                        style: textTheme.titleMedium,
+                      ),
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        url,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.primary,
+                          fontFamily: 'monospace',
+                          fontSize: 13,
+                          height: 18 / 13,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.xxs),
+                      Text(
+                        'Valid deeplink detected from clipboard',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: AppSpacing.lg),
-            Text(
-              'Target URL',
-              style: textTheme.labelMedium?.copyWith(
-                color: const Color(0xFF94A3B8),
-                fontWeight: FontWeight.w700,
+          ),
+          ColoredBox(
+            color: colorScheme.surface.withValues(alpha: 0.6),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.card,
+                AppSpacing.sm,
+                AppSpacing.card,
+                AppSpacing.sm,
               ),
-            ),
-            const SizedBox(height: AppSpacing.sm),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: const Color(0xB30F172A),
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(color: const Color(0xFF1E293B)),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(AppSpacing.md),
-                child: Text(
-                  url,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFFA5F3FC),
-                    fontFamily: 'monospace',
-                    fontWeight: FontWeight.w600,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton.icon(
+                    onPressed: onSaveEdit,
+                    icon: const Icon(Icons.bookmark_add_outlined, size: 15),
+                    label: const Text('Save Link'),
                   ),
-                ),
-              ),
-            ),
-            const SizedBox(height: AppSpacing.md),
-            Row(
-              children: [
-                Expanded(
-                  child: FilledButton.icon(
+                  const SizedBox(width: AppSpacing.xs),
+                  FilledButton.icon(
+                    onPressed: isOpening ? null : onOpen,
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF22D3EE),
-                      foregroundColor: const Color(0xFF020617),
-                      minimumSize: const Size.fromHeight(46),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      backgroundColor: colorScheme.secondary,
+                      minimumSize: const Size(0, 44),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.card,
                       ),
                     ),
                     icon: isOpening
                         ? const SizedBox.square(
-                            dimension: 18,
+                            dimension: 14,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const Icon(Icons.rocket_launch),
-                    label: const Text('Open in App'),
-                    onPressed: isOpening ? null : onOpen,
+                        : const Icon(Icons.open_in_new, size: 14),
+                    label: const Text('Dispatch Now'),
                   ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Tooltip(
-                  message: 'Save clipboard deeplink',
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFFE2E8F0),
-                      side: const BorderSide(color: Color(0xFF334155)),
-                      minimumSize: const Size(112, 46),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(AppRadius.md),
-                      ),
-                    ),
-                    onPressed: onSaveEdit,
-                    icon: const Icon(Icons.bookmark_border),
-                    label: const Text('Save'),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
-    );
-  }
-}
-
-class _ClipboardPulse extends StatelessWidget {
-  const _ClipboardPulse();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFF22D3EE),
-        shape: BoxShape.circle,
-        boxShadow: const [BoxShadow(color: Color(0x9922D3EE), blurRadius: 10)],
-      ),
-      child: const SizedBox.square(dimension: 10),
     );
   }
 }

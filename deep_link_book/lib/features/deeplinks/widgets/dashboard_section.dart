@@ -16,6 +16,7 @@ class DashboardSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     return Column(
@@ -23,7 +24,16 @@ class DashboardSection extends StatelessWidget {
       children: [
         Row(
           children: [
-            Expanded(child: Text(title, style: textTheme.titleMedium)),
+            Text(title, style: textTheme.titleMedium),
+            const SizedBox(width: AppSpacing.compact),
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: colorScheme.primary.withValues(alpha: 0.4),
+                shape: BoxShape.circle,
+              ),
+              child: const SizedBox.square(dimension: 6),
+            ),
+            const Spacer(),
             ?action,
           ],
         ),

@@ -102,14 +102,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       },
       child: Scaffold(
         appBar: AppRootTopBar(
-          title: widget.favoritesOnly ? widget.title : 'Deep Link Book',
+          title: widget.favoritesOnly ? widget.title : 'Deep Link Studio',
           searchQuery: _searchQuery,
           isSearching: _isSearching,
           onSearchPressed: _startSearch,
           onSearchQueryChanged: _updateSearchQuery,
           onSearchClose: _closeSearch,
           onSettingsPressed: _openSettings,
-          eyebrow: widget.favoritesOnly ? null : 'Dev Suite',
+          eyebrow: widget.favoritesOnly ? null : 'Home',
           leading: widget.favoritesOnly ? null : const AppBrandIcon(),
         ),
         body: widget.favoritesOnly
@@ -117,12 +117,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
             : _buildHomeBody(deeplinks, projects, recentHistory),
         floatingActionButton: widget.favoritesOnly
             ? null
-            : FloatingActionButton(
-                backgroundColor: const Color(0xFF22D3EE),
-                foregroundColor: const Color(0xFF020617),
+            : FloatingActionButton.extended(
+                backgroundColor: Theme.of(context).colorScheme.secondary,
+                foregroundColor: Colors.white,
                 tooltip: 'Add deeplink',
                 onPressed: () => context.pushNamed(AppRoute.addDeeplink.name),
-                child: const Icon(Icons.add),
+                icon: const Icon(Icons.add_link, size: 18),
+                label: const Text(
+                  'New Intent',
+                  style: TextStyle(fontFamily: 'monospace'),
+                ),
               ),
       ),
     );
@@ -277,6 +281,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
         projectCounts: projectCounts,
         onDeeplinkTap: _openEditScreen,
         onDeeplinkOpen: _openDeeplink,
+        onDeeplinkCopy: (deeplink) => _copyDeeplinkUrl(deeplink.url),
         openingDeeplinkIds: _openingDeeplinkIds,
         onProjectTap: _openProjectFromDashboard,
       );
@@ -302,8 +307,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen>
       onSeeAllFavorites: () => context.goNamed(AppRoute.favorites.name),
       onSeeAllProjects: () => context.goNamed(AppRoute.projects.name),
       onOpenHistoryItem: _reopenHistoryItem,
+      onCopyHistoryItem: (history) =>
+          _copyText(history.url, 'History deeplink copied.'),
       onOpenFavorite: _openDeeplink,
       onFavoriteTap: _openEditScreen,
+      onCopyFavorite: (deeplink) => _copyDeeplinkUrl(deeplink.url),
       onProjectTap: _openProjectFromDashboard,
       onCopyTerminalCommand: _copyText,
     );
@@ -1052,8 +1060,10 @@ class _HomeDashboard extends StatelessWidget {
     required this.onSeeAllFavorites,
     required this.onSeeAllProjects,
     required this.onOpenHistoryItem,
+    required this.onCopyHistoryItem,
     required this.onOpenFavorite,
     required this.onFavoriteTap,
+    required this.onCopyFavorite,
     required this.onProjectTap,
     required this.onCopyTerminalCommand,
   });
@@ -1073,8 +1083,10 @@ class _HomeDashboard extends StatelessWidget {
   final VoidCallback onSeeAllFavorites;
   final VoidCallback onSeeAllProjects;
   final ValueChanged<DeeplinkHistory> onOpenHistoryItem;
+  final ValueChanged<DeeplinkHistory> onCopyHistoryItem;
   final ValueChanged<Deeplink> onOpenFavorite;
   final ValueChanged<Deeplink> onFavoriteTap;
+  final ValueChanged<Deeplink> onCopyFavorite;
   final ValueChanged<Project> onProjectTap;
   final Future<void> Function(String text, String successMessage)
   onCopyTerminalCommand;
@@ -1086,9 +1098,9 @@ class _HomeDashboard extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.md,
+        AppSpacing.sm,
         AppSpacing.md,
-        AppSpacing.md,
-        AppSpacing.xl,
+        72,
       ),
       children: [
         if (clipboardQuickLinkUrl != null) ...[
@@ -1098,7 +1110,7 @@ class _HomeDashboard extends StatelessWidget {
             onOpen: onOpenClipboardQuickLink,
             onSaveEdit: onSaveEditClipboardQuickLink,
           ),
-          const SizedBox(height: AppSpacing.lg),
+          const SizedBox(height: 20),
         ],
         DashboardSection(
           title: 'Recently Opened',
@@ -1115,11 +1127,12 @@ class _HomeDashboard extends StatelessWidget {
                         history: history,
                         isOpening: openingHistoryIds.contains(history.id),
                         onOpen: () => onOpenHistoryItem(history),
+                        onCopy: () => onCopyHistoryItem(history),
                       ),
                   ],
                 ),
         ),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: 20),
         DashboardSection(
           title: 'Favorites',
           action: _SectionTextAction(
@@ -1136,11 +1149,12 @@ class _HomeDashboard extends StatelessWidget {
                         isOpening: openingDeeplinkIds.contains(deeplink.id),
                         onTap: () => onFavoriteTap(deeplink),
                         onOpen: () => onOpenFavorite(deeplink),
+                        onCopy: () => onCopyFavorite(deeplink),
                       ),
                   ],
                 ),
         ),
-        const SizedBox(height: AppSpacing.lg),
+        const SizedBox(height: 20),
         DashboardSection(
           title: 'Recent Projects',
           action: _SectionTextAction(
@@ -1149,13 +1163,7 @@ class _HomeDashboard extends StatelessWidget {
           ),
           child: recentProjects.isEmpty
               ? const _DashboardMessage('No projects yet')
-              : GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: AppSpacing.md,
-                  mainAxisSpacing: AppSpacing.md,
-                  childAspectRatio: 0.95,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
+              : _DashboardList(
                   children: [
                     for (final project in recentProjects)
                       _ProjectDashboardItem(
@@ -1167,7 +1175,7 @@ class _HomeDashboard extends StatelessWidget {
                 ),
         ),
         if (terminalDispatchUrl != null) ...[
-          const SizedBox(height: AppSpacing.xl),
+          const SizedBox(height: 20),
           _TerminalDispatchCard(
             url: terminalDispatchUrl,
             onCopyCommand: onCopyTerminalCommand,
@@ -1186,6 +1194,7 @@ class _HomeSearchResults extends StatelessWidget {
     required this.projectCounts,
     required this.onDeeplinkTap,
     required this.onDeeplinkOpen,
+    required this.onDeeplinkCopy,
     required this.openingDeeplinkIds,
     required this.onProjectTap,
   });
@@ -1196,6 +1205,7 @@ class _HomeSearchResults extends StatelessWidget {
   final Map<int, int> projectCounts;
   final ValueChanged<Deeplink> onDeeplinkTap;
   final ValueChanged<Deeplink> onDeeplinkOpen;
+  final ValueChanged<Deeplink> onDeeplinkCopy;
   final Set<int> openingDeeplinkIds;
   final ValueChanged<Project> onProjectTap;
 
@@ -1249,6 +1259,7 @@ class _HomeSearchResults extends StatelessWidget {
                         isOpening: openingDeeplinkIds.contains(deeplink.id),
                         onTap: () => onDeeplinkTap(deeplink),
                         onOpen: () => onDeeplinkOpen(deeplink),
+                        onCopy: () => onDeeplinkCopy(deeplink),
                       ),
                   ],
                 ),
@@ -1284,10 +1295,10 @@ class _SectionTextAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextButton(
       style: TextButton.styleFrom(
-        foregroundColor: const Color(0xFF4F46E5),
-        textStyle: Theme.of(
-          context,
-        ).textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w800),
+        foregroundColor: Theme.of(context).colorScheme.primary,
+        minimumSize: const Size(44, 32),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+        textStyle: Theme.of(context).textTheme.labelLarge,
       ),
       onPressed: onPressed,
       child: Row(
@@ -1295,7 +1306,7 @@ class _SectionTextAction extends StatelessWidget {
         children: [
           Text(label),
           const SizedBox(width: AppSpacing.xs),
-          const Icon(Icons.chevron_right),
+          const Icon(Icons.chevron_right, size: 14),
         ],
       ),
     );
@@ -1309,14 +1320,28 @@ class _DashboardList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        for (var index = 0; index < children.length; index++) ...[
-          children[index],
-          if (index != children.length - 1)
-            const SizedBox(height: AppSpacing.sm),
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0D000000),
+            blurRadius: 2,
+            offset: Offset(0, 1),
+          ),
         ],
-      ],
+      ),
+      child: Column(
+        children: [
+          for (var index = 0; index < children.length; index++) ...[
+            children[index],
+            if (index != children.length - 1) const Divider(),
+          ],
+        ],
+      ),
     );
   }
 }
@@ -1330,25 +1355,19 @@ class _DashboardMessage extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.md),
+    return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
-        border: Border.all(color: colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x0A0F172A),
-            blurRadius: 12,
-            offset: Offset(0, 2),
-          ),
-        ],
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(AppRadius.md),
       ),
-      child: Text(
-        message,
-        style: Theme.of(
-          context,
-        ).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.card),
+        child: Text(
+          message,
+          style: Theme.of(
+            context,
+          ).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+        ),
       ),
     );
   }
@@ -1359,93 +1378,98 @@ class _HistoryDashboardItem extends StatelessWidget {
     required this.history,
     required this.isOpening,
     required this.onOpen,
+    required this.onCopy,
   });
 
   final DeeplinkHistory history;
   final bool isOpening;
   final VoidCallback onOpen;
+  final VoidCallback onCopy;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return DecoratedBox(
-      decoration: _homeCardDecoration(),
-      child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
-        child: Row(
-          children: [
-            _StatusDot(
-              color: history.isSuccess
-                  ? const Color(0xFF10B981)
-                  : colorScheme.error,
-            ),
-            const SizedBox(width: AppSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          history.name.isEmpty ? history.url : history.name,
-                          style: textTheme.titleMedium?.copyWith(
-                            color: const Color(0xFF0F172A),
-                            fontWeight: FontWeight.w800,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+    return Padding(
+      padding: const EdgeInsets.all(AppSpacing.card),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        history.name.isEmpty ? history.url : history.name,
+                        style: textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w500,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      const SizedBox(width: AppSpacing.sm),
-                      _SchemeChip(url: history.url),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    history.url,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                      fontFamily: 'monospace',
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    DateTimeFormatter.compactDateTime(history.openedAt),
-                    style: textTheme.labelMedium?.copyWith(
-                      color: const Color(0xFF94A3B8),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            FilledButton.icon(
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFF0F172A),
-                foregroundColor: const Color(0xFF67E8F9),
-                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-                minimumSize: const Size(0, 40),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                    const SizedBox(width: AppSpacing.xs),
+                    _SchemeChip(url: history.url),
+                  ],
                 ),
-              ),
-              onPressed: isOpening ? null : onOpen,
-              icon: isOpening
-                  ? const SizedBox.square(
-                      dimension: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.open_in_new, size: 18),
-              label: const Text('Launch'),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  history.url,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    fontFamily: 'monospace',
+                    fontSize: 13,
+                    height: 18 / 13,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Row(
+                  children: [
+                    _StatusDot(
+                      color: history.isSuccess
+                          ? colorScheme.primary
+                          : colorScheme.error,
+                    ),
+                    const SizedBox(width: AppSpacing.compact),
+                    Flexible(
+                      child: Text(
+                        DateTimeFormatter.compactDateTime(history.openedAt),
+                        style: textTheme.labelMedium?.copyWith(
+                          color: history.isSuccess
+                              ? colorScheme.onSurfaceVariant
+                              : colorScheme.error,
+                          fontFamily: 'monospace',
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: AppSpacing.xs),
+          _CompactIconAction(
+            tooltip: history.isSuccess ? 'Open deeplink' : 'Retry deeplink',
+            icon: isOpening
+                ? null
+                : history.isSuccess
+                ? Icons.open_in_new
+                : Icons.refresh,
+            onPressed: isOpening ? null : onOpen,
+          ),
+          _CompactIconAction(
+            tooltip: 'Copy deeplink URL',
+            icon: Icons.content_copy_outlined,
+            onPressed: onCopy,
+          ),
+        ],
       ),
     );
   }
@@ -1457,99 +1481,89 @@ class _FavoriteDashboardItem extends StatelessWidget {
     required this.isOpening,
     required this.onTap,
     required this.onOpen,
+    required this.onCopy,
   });
 
   final Deeplink deeplink;
   final bool isOpening;
   final VoidCallback onTap;
   final VoidCallback onOpen;
+  final VoidCallback onCopy;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Material(
-      color: Colors.transparent,
-      child: Ink(
-        decoration: _homeCardDecoration().copyWith(
-          gradient: const LinearGradient(
-            colors: [Colors.white, Color(0xFFF0FDFA)],
-          ),
-        ),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.md),
-            child: Row(
-              children: [
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFFBEB),
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    border: Border.all(color: const Color(0xFFFDE68A)),
-                  ),
-                  child: const Padding(
-                    padding: EdgeInsets.all(AppSpacing.sm),
-                    child: Icon(Icons.star, color: Color(0xFFF59E0B)),
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        deeplink.name,
-                        style: textTheme.titleMedium?.copyWith(
-                          color: const Color(0xFF0F172A),
-                          fontWeight: FontWeight.w800,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        deeplink.url,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                          fontFamily: 'monospace',
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF06B6D4),
-                    foregroundColor: const Color(0xFF020617),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.md,
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.card),
+        child: Row(
+          children: [
+            Icon(Icons.star, size: 15, color: colorScheme.primary),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    deeplink.name,
+                    style: textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w500,
                     ),
-                    minimumSize: const Size(0, 40),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    deeplink.url,
+                    style: textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontFamily: 'monospace',
+                      fontSize: 13,
+                      height: 18 / 13,
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: AppSpacing.xxs),
+                  Text(
+                    _favoriteMetadata,
+                    style: textTheme.labelMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                      fontFamily: 'monospace',
                     ),
                   ),
-                  onPressed: isOpening ? null : onOpen,
-                  icon: isOpening
-                      ? const SizedBox.square(
-                          dimension: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(Icons.rocket_launch, size: 18),
-                  label: const Text('Open'),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
+            const SizedBox(width: AppSpacing.xs),
+            _CompactIconAction(
+              tooltip: 'Open deeplink',
+              icon: isOpening ? null : Icons.open_in_new,
+              onPressed: isOpening ? null : onOpen,
+            ),
+            _CompactIconAction(
+              tooltip: 'Copy deeplink URL',
+              icon: Icons.content_copy_outlined,
+              onPressed: onCopy,
+            ),
+            _CompactIconAction(
+              tooltip: 'Edit deeplink',
+              icon: Icons.more_vert,
+              onPressed: onTap,
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  String get _favoriteMetadata {
+    final count = deeplink.openCount;
+    return 'Opened $count ${count == 1 ? 'time' : 'times'}';
   }
 }
 
@@ -1569,61 +1583,56 @@ class _ProjectDashboardItem extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Material(
-      color: Colors.transparent,
-      child: Ink(
-        decoration: _homeCardDecoration(),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          onTap: onTap,
-          child: SizedBox(
-            height: 144,
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
+    return InkWell(
+      borderRadius: BorderRadius.circular(AppRadius.md),
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.card),
+        child: Row(
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: colorScheme.surfaceContainerHigh,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
+              ),
+              child: const SizedBox.square(
+                dimension: 32,
+                child: Icon(Icons.folder_outlined, size: 15),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.card),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFE0F7FA),
-                          borderRadius: BorderRadius.circular(AppRadius.md),
-                        ),
-                        child: const Padding(
-                          padding: EdgeInsets.all(AppSpacing.sm),
-                          child: Icon(
-                            Icons.folder_outlined,
-                            color: Color(0xFF0891B2),
-                          ),
-                        ),
-                      ),
-                      const Spacer(),
-                      _CountPill(label: _deeplinkCountLabel),
-                    ],
-                  ),
-                  const Spacer(),
                   Text(
                     project.name,
                     style: textTheme.titleMedium?.copyWith(
-                      color: const Color(0xFF0F172A),
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w500,
                     ),
-                    maxLines: 2,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: AppSpacing.xs),
+                  const SizedBox(height: AppSpacing.xxs),
                   Text(
-                    DateTimeFormatter.compactDateTime(project.updatedAt),
-                    style: textTheme.bodySmall?.copyWith(
+                    '$_deeplinkCountLabel · Edited ${DateTimeFormatter.compactDateTime(project.updatedAt)}',
+                    style: textTheme.labelMedium?.copyWith(
                       color: colorScheme.onSurfaceVariant,
-                      fontWeight: FontWeight.w600,
+                      fontFamily: 'monospace',
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
             ),
-          ),
+            const SizedBox(width: AppSpacing.sm),
+            Icon(
+              Icons.chevron_right,
+              size: 16,
+              color: colorScheme.onSurfaceVariant,
+            ),
+          ],
         ),
       ),
     );
@@ -1647,18 +1656,18 @@ class _TerminalDispatchCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final command = buildAdbCommand(url);
+    final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFF0F172A),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: const Color(0xFF1E293B)),
+        color: colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(AppRadius.md),
         boxShadow: const [
           BoxShadow(
-            color: Color(0x330F172A),
-            blurRadius: 20,
-            offset: Offset(0, 10),
+            color: Color(0x0D000000),
+            blurRadius: 1,
+            offset: Offset(0, 1),
           ),
         ],
       ),
@@ -1668,22 +1677,22 @@ class _TerminalDispatchCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.terminal, color: Color(0xFF22D3EE), size: 20),
+                Icon(Icons.terminal, color: colorScheme.primary, size: 14),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
-                    'Terminal Dispatch',
-                    style: textTheme.titleSmall?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
+                    'DIRECT DISPATCHER',
+                    style: textTheme.labelSmall?.copyWith(
+                      fontFamily: 'monospace',
+                      letterSpacing: 0.55,
                     ),
                   ),
                 ),
                 Text(
-                  'ADB / XCRUN',
+                  'ADB command',
                   style: textTheme.labelSmall?.copyWith(
-                    color: const Color(0xFF22D3EE),
-                    fontWeight: FontWeight.w800,
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w400,
                     fontFamily: 'monospace',
                   ),
                 ),
@@ -1692,9 +1701,8 @@ class _TerminalDispatchCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             DecoratedBox(
               decoration: BoxDecoration(
-                color: const Color(0xFF020617),
-                borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(color: const Color(0xFF1E293B)),
+                color: colorScheme.surface,
+                borderRadius: BorderRadius.circular(AppRadius.sm),
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -1706,9 +1714,9 @@ class _TerminalDispatchCard extends StatelessWidget {
                     Text(
                       r'$',
                       style: textTheme.bodySmall?.copyWith(
-                        color: const Color(0xFF22D3EE),
+                        color: colorScheme.primary,
                         fontFamily: 'monospace',
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
@@ -1718,20 +1726,21 @@ class _TerminalDispatchCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: textTheme.bodySmall?.copyWith(
-                          color: const Color(0xFFCBD5E1),
+                          color: colorScheme.onSurface,
                           fontFamily: 'monospace',
                         ),
                       ),
                     ),
-                    IconButton(
+                    IconButton.filled(
                       tooltip: 'Copy ADB command',
                       onPressed: () =>
                           onCopyCommand(command, 'ADB command copied.'),
-                      icon: const Icon(
-                        Icons.content_copy,
-                        color: Color(0xFF94A3B8),
-                        size: 18,
+                      style: IconButton.styleFrom(
+                        minimumSize: const Size.square(44),
+                        backgroundColor: colorScheme.secondary,
+                        foregroundColor: Colors.white,
                       ),
+                      icon: const Icon(Icons.content_copy, size: 14),
                     ),
                   ],
                 ),
@@ -1752,14 +1761,8 @@ class _StatusDot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: BoxDecoration(
-        color: color,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(color: color.withValues(alpha: 0.35), blurRadius: 8),
-        ],
-      ),
-      child: const SizedBox.square(dimension: 12),
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      child: const SizedBox.square(dimension: 6),
     );
   }
 }
@@ -1779,18 +1782,16 @@ class _SchemeChip extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: const Color(0xFFE0F7FA),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFA5F3FC)),
+        color: Theme.of(context).colorScheme.surfaceContainer,
+        borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
         child: Text(
-          scheme.toUpperCase(),
+          scheme,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: const Color(0xFF0E7490),
+            color: Theme.of(context).colorScheme.primary,
             fontFamily: 'monospace',
-            fontWeight: FontWeight.w800,
           ),
         ),
       ),
@@ -1798,42 +1799,32 @@ class _SchemeChip extends StatelessWidget {
   }
 }
 
-class _CountPill extends StatelessWidget {
-  const _CountPill({required this.label});
+class _CompactIconAction extends StatelessWidget {
+  const _CompactIconAction({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
 
-  final String label;
+  final String tooltip;
+  final IconData? icon;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-        child: Text(
-          label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            color: const Color(0xFF475569),
-            fontFamily: 'monospace',
-            fontWeight: FontWeight.w700,
-          ),
-        ),
-      ),
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+      iconSize: 16,
+      icon: icon == null
+          ? const SizedBox.square(
+              dimension: 14,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : Icon(icon),
     );
   }
-}
-
-BoxDecoration _homeCardDecoration() {
-  return BoxDecoration(
-    color: Colors.white,
-    borderRadius: BorderRadius.circular(AppRadius.lg),
-    border: Border.all(color: const Color(0xFFE2E8F0)),
-    boxShadow: const [
-      BoxShadow(color: Color(0x0A0F172A), blurRadius: 12, offset: Offset(0, 2)),
-    ],
-  );
 }
 
 enum DeeplinkSortOption {
