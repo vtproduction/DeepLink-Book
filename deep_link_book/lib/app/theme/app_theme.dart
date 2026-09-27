@@ -116,31 +116,6 @@ abstract final class AppTheme {
         space: 1,
         thickness: 1,
       ),
-      navigationBarTheme: NavigationBarThemeData(
-        height: 72,
-        backgroundColor: const Color(0xFF0B1329),
-        indicatorColor: const Color(0xFF164E63),
-        indicatorShape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
-        iconTheme: WidgetStateProperty.resolveWith((states) {
-          return IconThemeData(
-            color: states.contains(WidgetState.selected)
-                ? const Color(0xFF22D3EE)
-                : const Color(0xFF94A3B8),
-          );
-        }),
-        labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          return TextStyle(
-            color: states.contains(WidgetState.selected)
-                ? const Color(0xFF67E8F9)
-                : const Color(0xFF94A3B8),
-            fontWeight: states.contains(WidgetState.selected)
-                ? FontWeight.w700
-                : FontWeight.w500,
-          );
-        }),
-      ),
     );
   }
 
