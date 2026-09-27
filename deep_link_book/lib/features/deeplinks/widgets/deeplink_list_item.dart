@@ -10,7 +10,7 @@ class DeeplinkListItem extends StatelessWidget {
     super.key,
     required this.deeplink,
     this.cardLayout = false,
-    this.favoriteListLayout = false,
+    this.workspaceLayout = false,
     this.isProcessing = false,
     this.isFavoriteProcessing = false,
     this.isOpening = false,
@@ -26,7 +26,7 @@ class DeeplinkListItem extends StatelessWidget {
 
   final Deeplink deeplink;
   final bool cardLayout;
-  final bool favoriteListLayout;
+  final bool workspaceLayout;
   final bool isProcessing;
   final bool isFavoriteProcessing;
   final bool isOpening;
@@ -45,10 +45,12 @@ class DeeplinkListItem extends StatelessWidget {
     final borderRadius = BorderRadius.circular(AppRadius.md);
 
     return Material(
+      elevation: cardLayout && workspaceLayout ? 0.5 : 0,
+      shadowColor: const Color(0x140F172A),
       color: cardLayout ? colorScheme.surface : Colors.transparent,
       shape: RoundedRectangleBorder(
         borderRadius: borderRadius,
-        side: cardLayout
+        side: cardLayout && !workspaceLayout
             ? BorderSide(color: colorScheme.outlineVariant)
             : BorderSide.none,
       ),
@@ -60,15 +62,15 @@ class DeeplinkListItem extends StatelessWidget {
             horizontal: AppSpacing.card,
             vertical: cardLayout ? AppSpacing.card : AppSpacing.sm,
           ),
-          child: favoriteListLayout
-              ? _buildFavoriteListContent(context)
+          child: workspaceLayout
+              ? _buildWorkspaceContent(context)
               : _buildContent(context),
         ),
       ),
     );
   }
 
-  Widget _buildFavoriteListContent(BuildContext context) {
+  Widget _buildWorkspaceContent(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -76,7 +78,8 @@ class DeeplinkListItem extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         IconButton(
-          tooltip: 'Unfavorite ${deeplink.name}',
+          tooltip:
+              '${deeplink.isFavorite ? 'Unfavorite' : 'Favorite'} ${deeplink.name}',
           constraints: const BoxConstraints.tightFor(width: 44, height: 44),
           onPressed: isProcessing || isFavoriteProcessing
               ? null
@@ -86,7 +89,13 @@ class DeeplinkListItem extends StatelessWidget {
                   dimension: 14,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-              : Icon(Icons.star, size: 18, color: colorScheme.primary),
+              : Icon(
+                  deeplink.isFavorite ? Icons.star : Icons.star_border,
+                  size: 18,
+                  color: deeplink.isFavorite
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
+                ),
         ),
         const SizedBox(width: AppSpacing.xs),
         Expanded(

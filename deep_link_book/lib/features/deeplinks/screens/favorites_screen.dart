@@ -126,7 +126,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                         ) ...[
                           DeeplinkListItem(
                             deeplink: visibleFavorites[index],
-                            favoriteListLayout: true,
+                            workspaceLayout: true,
                             isProcessing:
                                 _processingDeeplinkId ==
                                 visibleFavorites[index].id,
