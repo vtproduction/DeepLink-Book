@@ -10,6 +10,7 @@ import '../../../app/widgets/app_brand_icon.dart';
 import '../../../app/widgets/app_root_top_bar.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/deeplink/deeplink_launcher.dart';
+import '../../../core/utils/date_time_formatter.dart';
 import '../../../core/widgets/app_confirm_dialog.dart';
 import '../../../core/widgets/app_error_state.dart';
 import '../../../core/widgets/app_empty_state.dart';
@@ -50,9 +51,10 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
         }
       },
       child: Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surface,
         appBar: AppRootTopBar(
-          title: 'Deep Link Book',
-          eyebrow: 'Dev Suite',
+          title: 'Deep Link Studio',
+          eyebrow: 'History',
           leading: const AppBrandIcon(),
           searchQuery: _searchQuery,
           isSearching: _isSearching,
@@ -100,7 +102,7 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
             return ListView(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.md,
-                AppSpacing.md,
+                AppSpacing.xs,
                 AppSpacing.md,
                 AppSpacing.xl,
               ),
@@ -109,14 +111,15 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                   totalCount: visibleHistoryItems.length,
                   successCount: successCount,
                   failedCount: failedCount,
+                  latestOpenedAt: visibleHistoryItems.first.openedAt,
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.md),
                 for (final group in groups) ...[
                   _HistoryGroupHeader(
                     label: group.label,
                     count: group.items.length,
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  const SizedBox(height: AppSpacing.xs),
                   for (var index = 0; index < group.items.length; index++) ...[
                     HistoryListItem(
                       history: group.items[index],
@@ -131,10 +134,9 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
                       onDelete: () =>
                           _confirmAndDeleteHistoryItem(group.items[index]),
                     ),
-                    if (index != group.items.length - 1)
-                      const SizedBox(height: AppSpacing.sm),
+                    if (index != group.items.length - 1) const Divider(),
                   ],
-                  const SizedBox(height: AppSpacing.lg),
+                  const SizedBox(height: AppSpacing.md),
                 ],
               ],
             );
@@ -186,11 +188,11 @@ class _HistoryScreenState extends ConsumerState<HistoryScreen> {
     final difference = today.difference(itemDate).inDays;
 
     if (difference == 0) {
-      return 'Today, ${_monthNames[local.month - 1]} ${local.day}, ${local.year}';
+      return 'Today — ${_monthNames[local.month - 1]} ${local.day}, ${local.year}';
     }
 
     if (difference == 1) {
-      return 'Yesterday, ${_monthNames[local.month - 1]} ${local.day}, ${local.year}';
+      return 'Yesterday — ${_monthNames[local.month - 1]} ${local.day}, ${local.year}';
     }
 
     return '${_monthNames[local.month - 1]} ${local.day}, ${local.year}';
@@ -429,55 +431,90 @@ class _HistoryPageHeader extends StatelessWidget {
     required this.totalCount,
     required this.successCount,
     required this.failedCount,
+    required this.latestOpenedAt,
   });
 
   final int totalCount;
   final int successCount;
   final int failedCount;
+  final DateTime latestOpenedAt;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'History',
-          style: textTheme.headlineMedium?.copyWith(
-            color: const Color(0xFF020617),
-            fontWeight: FontWeight.w900,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          'Snapshot of launched deep links',
-          style: textTheme.bodySmall?.copyWith(
-            color: const Color(0xFF64748B),
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _HistorySummaryPill(
-                label: 'All Logs ($totalCount)',
-                dotColor: const Color(0xFF22D3EE),
-                isPrimary: true,
+        Row(
+          children: [
+            DecoratedBox(
+              decoration: BoxDecoration(
+                color: colorScheme.primary,
+                shape: BoxShape.circle,
               ),
-              const SizedBox(width: AppSpacing.sm),
-              _HistorySummaryPill(
-                label: 'Success ($successCount)',
-                dotColor: const Color(0xFF10B981),
+              child: const SizedBox.square(dimension: 8),
+            ),
+            const SizedBox(width: AppSpacing.xs),
+            Text(
+              'INSPECTOR LOG',
+              style: textTheme.labelSmall?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                letterSpacing: 0.55,
               ),
-              const SizedBox(width: AppSpacing.sm),
-              _HistorySummaryPill(
-                label: 'Failed ($failedCount)',
-                dotColor: const Color(0xFFF43F5E),
+            ),
+          ],
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainer,
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x080F172A),
+                blurRadius: 1,
+                offset: Offset(0, 1),
               ),
             ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: Row(
+              children: [
+                Icon(Icons.history, size: 15, color: colorScheme.primary),
+                const SizedBox(width: AppSpacing.xs),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        '$totalCount ${totalCount == 1 ? 'launch' : 'launches'} recorded',
+                        style: textTheme.labelSmall,
+                      ),
+                      Text(
+                        'Last dispatched ${DateTimeFormatter.compactDateTime(latestOpenedAt)}',
+                        style: textTheme.labelMedium?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                _HistoryCountBadge(
+                  label: '$successCount pass',
+                  foregroundColor: colorScheme.primary,
+                  backgroundColor: colorScheme.surface,
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                _HistoryCountBadge(
+                  label: '$failedCount fail',
+                  foregroundColor: colorScheme.onErrorContainer,
+                  backgroundColor: colorScheme.errorContainer,
+                ),
+              ],
+            ),
           ),
         ),
       ],
@@ -485,57 +522,35 @@ class _HistoryPageHeader extends StatelessWidget {
   }
 }
 
-class _HistorySummaryPill extends StatelessWidget {
-  const _HistorySummaryPill({
+class _HistoryCountBadge extends StatelessWidget {
+  const _HistoryCountBadge({
     required this.label,
-    required this.dotColor,
-    this.isPrimary = false,
+    required this.foregroundColor,
+    required this.backgroundColor,
   });
 
   final String label;
-  final Color dotColor;
-  final bool isPrimary;
+  final Color foregroundColor;
+  final Color backgroundColor;
 
   @override
   Widget build(BuildContext context) {
-    final backgroundColor = isPrimary ? const Color(0xFF0B1329) : Colors.white;
-    final borderColor = isPrimary
-        ? const Color(0xFF0B1329)
-        : const Color(0xFFE2E8F0);
-    final textColor = isPrimary
-        ? const Color(0xFF67E8F9)
-        : const Color(0xFF475569);
-
     return DecoratedBox(
       decoration: BoxDecoration(
         color: backgroundColor,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: borderColor),
+        borderRadius: BorderRadius.circular(AppRadius.xs),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
+          horizontal: AppSpacing.compact,
+          vertical: AppSpacing.xxs,
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: dotColor,
-                shape: BoxShape.circle,
-              ),
-              child: const SizedBox.square(dimension: 7),
-            ),
-            const SizedBox(width: AppSpacing.sm),
-            Text(
-              label,
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: textColor,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-          ],
+        child: Text(
+          label,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+            color: foregroundColor,
+            fontFamily: 'monospace',
+          ),
         ),
       ),
     );
@@ -550,25 +565,33 @@ class _HistoryGroupHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     return Row(
       children: [
-        Expanded(
-          child: Text(
-            label.toUpperCase(),
-            style: textTheme.labelLarge?.copyWith(
-              color: const Color(0xFF94A3B8),
-              fontFamily: 'monospace',
-              fontWeight: FontWeight.w800,
-            ),
+        Text(
+          label.toUpperCase(),
+          style: textTheme.labelSmall?.copyWith(
+            color: colorScheme.onSurfaceVariant,
+            letterSpacing: 0.55,
           ),
         ),
-        Text(
-          count == 1 ? '1 event' : '$count events',
-          style: textTheme.labelMedium?.copyWith(
-            color: const Color(0xFF94A3B8),
-            fontWeight: FontWeight.w600,
+        const SizedBox(width: AppSpacing.xs),
+        DecoratedBox(
+          decoration: BoxDecoration(
+            color: colorScheme.surfaceContainer,
+            borderRadius: BorderRadius.circular(AppRadius.xs),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            child: Text(
+              '$count',
+              style: textTheme.labelMedium?.copyWith(
+                color: colorScheme.onSurfaceVariant,
+                fontFamily: 'monospace',
+              ),
+            ),
           ),
         ),
       ],
