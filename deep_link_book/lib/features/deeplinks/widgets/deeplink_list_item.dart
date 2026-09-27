@@ -10,6 +10,7 @@ class DeeplinkListItem extends StatelessWidget {
     super.key,
     required this.deeplink,
     this.cardLayout = false,
+    this.favoriteListLayout = false,
     this.isProcessing = false,
     this.isFavoriteProcessing = false,
     this.isOpening = false,
@@ -25,6 +26,7 @@ class DeeplinkListItem extends StatelessWidget {
 
   final Deeplink deeplink;
   final bool cardLayout;
+  final bool favoriteListLayout;
   final bool isProcessing;
   final bool isFavoriteProcessing;
   final bool isOpening;
@@ -58,9 +60,106 @@ class DeeplinkListItem extends StatelessWidget {
             horizontal: AppSpacing.card,
             vertical: cardLayout ? AppSpacing.card : AppSpacing.sm,
           ),
-          child: _buildContent(context),
+          child: favoriteListLayout
+              ? _buildFavoriteListContent(context)
+              : _buildContent(context),
         ),
       ),
+    );
+  }
+
+  Widget _buildFavoriteListContent(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        IconButton(
+          tooltip: 'Unfavorite ${deeplink.name}',
+          constraints: const BoxConstraints.tightFor(width: 44, height: 44),
+          onPressed: isProcessing || isFavoriteProcessing
+              ? null
+              : onFavoriteTap,
+          icon: isFavoriteProcessing
+              ? const SizedBox.square(
+                  dimension: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : Icon(Icons.star, size: 18, color: colorScheme.primary),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      deeplink.name,
+                      style: textTheme.titleMedium,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: AppSpacing.xs),
+                  _SchemeBadge(label: _schemeLabel),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: colorScheme.surfaceContainer,
+                  borderRadius: BorderRadius.circular(AppRadius.xs),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.sm,
+                    vertical: AppSpacing.xs,
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.link,
+                        size: 13,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: AppSpacing.xs),
+                      Expanded(
+                        child: Text(
+                          deeplink.url,
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurface,
+                            fontFamily: 'monospace',
+                            fontSize: 13,
+                            height: 18 / 13,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                _usageMetadataLabel,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurfaceVariant,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              Align(
+                alignment: Alignment.centerRight,
+                child: _buildActions(context),
+              ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 

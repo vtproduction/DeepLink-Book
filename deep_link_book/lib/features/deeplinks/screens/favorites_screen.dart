@@ -51,15 +51,16 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
         }
       },
       child: Scaffold(
+        backgroundColor: Theme.of(context).colorScheme.surface,
         appBar: AppRootTopBar(
-          title: 'Deep Link Book',
+          title: 'Deep Link Studio',
           searchQuery: _searchQuery,
           isSearching: _isSearching,
           onSearchPressed: _startSearch,
           onSearchQueryChanged: _updateSearchQuery,
           onSearchClose: _closeSearch,
           onSettingsPressed: _openSettings,
-          eyebrow: 'Dev Suite',
+          eyebrow: 'Favorites',
           leading: const AppBrandIcon(),
         ),
         body: deeplinks.when(
@@ -81,13 +82,13 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
             return ListView(
               padding: const EdgeInsets.fromLTRB(
                 AppSpacing.md,
-                AppSpacing.md,
+                AppSpacing.xs,
                 AppSpacing.md,
                 AppSpacing.xl,
               ),
               children: [
                 _FavoritesPageHeader(count: visibleFavorites.length),
-                const SizedBox(height: AppSpacing.lg),
+                const SizedBox(height: AppSpacing.md),
                 if (visibleFavorites.isEmpty)
                   Padding(
                     padding: const EdgeInsets.only(top: AppSpacing.xl),
@@ -104,39 +105,61 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
                     ),
                   )
                 else
-                  for (
-                    var index = 0;
-                    index < visibleFavorites.length;
-                    index++
-                  ) ...[
-                    DeeplinkListItem(
-                      deeplink: visibleFavorites[index],
-                      cardLayout: true,
-                      isProcessing:
-                          _processingDeeplinkId == visibleFavorites[index].id,
-                      isFavoriteProcessing: _processingFavoriteIds.contains(
-                        visibleFavorites[index].id,
-                      ),
-                      isOpening: _openingDeeplinkIds.contains(
-                        visibleFavorites[index].id,
-                      ),
-                      onTap: () => _openEditScreen(visibleFavorites[index]),
-                      onOpen: () => _openDeeplink(visibleFavorites[index]),
-                      onFavoriteTap: () =>
-                          _toggleFavorite(visibleFavorites[index]),
-                      onEdit: () => _openEditScreen(visibleFavorites[index]),
-                      onCopy: () =>
-                          _copyDeeplinkUrl(visibleFavorites[index].url),
-                      onDeveloperTools: () =>
-                          _showDeveloperTools(visibleFavorites[index].url),
-                      onDuplicate: () =>
-                          _duplicateDeeplink(visibleFavorites[index]),
-                      onDelete: () =>
-                          _confirmAndDeleteDeeplink(visibleFavorites[index]),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      boxShadow: const [
+                        BoxShadow(
+                          color: Color(0x080F172A),
+                          blurRadius: 1,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
                     ),
-                    if (index != visibleFavorites.length - 1)
-                      const SizedBox(height: AppSpacing.md),
-                  ],
+                    child: Column(
+                      children: [
+                        for (
+                          var index = 0;
+                          index < visibleFavorites.length;
+                          index++
+                        ) ...[
+                          DeeplinkListItem(
+                            deeplink: visibleFavorites[index],
+                            favoriteListLayout: true,
+                            isProcessing:
+                                _processingDeeplinkId ==
+                                visibleFavorites[index].id,
+                            isFavoriteProcessing: _processingFavoriteIds
+                                .contains(visibleFavorites[index].id),
+                            isOpening: _openingDeeplinkIds.contains(
+                              visibleFavorites[index].id,
+                            ),
+                            onTap: () =>
+                                _openEditScreen(visibleFavorites[index]),
+                            onOpen: () =>
+                                _openDeeplink(visibleFavorites[index]),
+                            onFavoriteTap: () =>
+                                _toggleFavorite(visibleFavorites[index]),
+                            onEdit: () =>
+                                _openEditScreen(visibleFavorites[index]),
+                            onCopy: () =>
+                                _copyDeeplinkUrl(visibleFavorites[index].url),
+                            onDeveloperTools: () => _showDeveloperTools(
+                              visibleFavorites[index].url,
+                            ),
+                            onDuplicate: () =>
+                                _duplicateDeeplink(visibleFavorites[index]),
+                            onDelete: () => _confirmAndDeleteDeeplink(
+                              visibleFavorites[index],
+                            ),
+                          ),
+                          if (index != visibleFavorites.length - 1)
+                            const Divider(),
+                        ],
+                      ],
+                    ),
+                  ),
               ],
             );
           },
@@ -489,39 +512,71 @@ class _FavoritesPageHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.xs,
-          crossAxisAlignment: WrapCrossAlignment.center,
+        Row(
           children: [
-            Text(
-              'Favorites',
-              style: textTheme.headlineMedium?.copyWith(
-                color: const Color(0xFF0B1329),
-                fontWeight: FontWeight.w900,
+            Expanded(
+              child: Wrap(
+                spacing: AppSpacing.sm,
+                runSpacing: AppSpacing.xs,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  Text('Favorites', style: textTheme.titleLarge),
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(AppRadius.xs),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                        vertical: AppSpacing.xs,
+                      ),
+                      child: Text(
+                        '$count ACTIVE',
+                        style: textTheme.labelSmall?.copyWith(
+                          color: colorScheme.onPrimaryContainer,
+                          fontFamily: 'monospace',
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
+            const SizedBox(width: AppSpacing.sm),
             DecoratedBox(
               decoration: BoxDecoration(
-                color: const Color(0xFFCFFAFE),
-                borderRadius: BorderRadius.circular(AppRadius.lg),
+                color: colorScheme.surfaceContainer,
+                borderRadius: BorderRadius.circular(AppRadius.xs),
               ),
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.sm,
                   vertical: AppSpacing.xs,
                 ),
-                child: Text(
-                  '$count Starred',
-                  style: textTheme.labelMedium?.copyWith(
-                    color: const Color(0xFF115E59),
-                    fontWeight: FontWeight.w700,
-                  ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.swap_vert,
+                      size: 13,
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                    const SizedBox(width: AppSpacing.xs),
+                    Text(
+                      'RECENT',
+                      style: textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        fontFamily: 'monospace',
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -529,10 +584,9 @@ class _FavoritesPageHeader extends StatelessWidget {
         ),
         const SizedBox(height: AppSpacing.xs),
         Text(
-          'Quick access to your starred deeplinks',
+          '$count ${count == 1 ? 'starred deeplink' : 'starred deeplinks'} · Quick launch access',
           style: textTheme.bodyMedium?.copyWith(
-            color: const Color(0xFF64748B),
-            fontWeight: FontWeight.w500,
+            color: colorScheme.onSurfaceVariant,
           ),
         ),
       ],
